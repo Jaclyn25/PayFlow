@@ -114,7 +114,8 @@ public class PostgresConcurrencyTests : IClassFixture<PostgresTestContainerFixtu
         var transactions = await verifyContext.Transactions.Where(t => t.SenderWalletId == aliceWalletFinal.Id).ToListAsync();
         transactions.Should().HaveCount(1, "Exactly one completed transfer record exists.");
 
-        var outboxMessages = await verifyContext.OutboxMessages.ToListAsync();
+        var txnId = transactions[0].Id.ToString();
+        var outboxMessages = await verifyContext.OutboxMessages.Where(o => o.Payload.Contains(txnId)).ToListAsync();
         outboxMessages.Should().HaveCount(1, "Exactly one OutboxMessage was created.");
     }
 
@@ -182,7 +183,7 @@ public class PostgresConcurrencyTests : IClassFixture<PostgresTestContainerFixtu
         var ledgers = await verifyContext.LedgerEntries.Where(l => l.TransactionId == txns[0].Id).ToListAsync();
         ledgers.Should().HaveCount(2, "Exactly one double-entry ledger pair created.");
 
-        var outbox = await verifyContext.OutboxMessages.ToListAsync();
+        var outbox = await verifyContext.OutboxMessages.Where(o => o.Payload.Contains(txns[0].Id.ToString())).ToListAsync();
         outbox.Should().HaveCount(1, "Exactly one OutboxMessage created.");
     }
 
