@@ -1,0 +1,113 @@
+## General Build Output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+
+## .NET / NuGet
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userossscache
+*.sln.docstates
+*.rsuser
+_ReSharper*/
+*.[Rr]e[Ss]harper
+[Tt]est[Rr]esult*/
+[Dd]ebugPublic/
+[Rr]eleases/
+[Aa]rtifacts/
+BenchmarkDotNet.Artifacts/
+*.GhostDoc.xml
+*.VisualState.xml
+AutoTest.Net/
+
+## Rider / IntelliJ
+.idea/
+*.sln.iml
+
+## VS Code (local user settings only)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+## User-specific files
+*.suo
+*.user
+*.userossscache
+*.sln.docstates
+
+## Test / Coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+coveragereport/
+[Cc]overage[Rr]eport/
+
+## Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+## Linux
+*~
+
+## Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+## Log files
+*.log
+
+## Environment / Secrets
+.env
+.env.*
+!.env.example
+
+## Docker local data (named volume data if bind-mounted)
+docker-data/
+postgres-data/
+redis-data/
+rabbitmq-data/
+
+## NuGet
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nupkg
+!**/[Pp]ackages/*.targets
+
+## Build / Publish
+publish/
+**/PublishProfiles/
