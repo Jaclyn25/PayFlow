@@ -1,0 +1,30 @@
+name: PayFlow CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build & Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore PayFlow.slnx
+
+      - name: Build Solution
+        run: dotnet build PayFlow.slnx --no-restore -c Release
+
+      - name: Execute Tests
+        run: dotnet test PayFlow.slnx --no-build -c Release --verbosity normal
