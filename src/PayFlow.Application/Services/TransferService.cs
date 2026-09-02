@@ -55,6 +55,7 @@ public class TransferService : ITransferService
 
         // 2. Validate Sender & Receiver
         var senderUser = await _dbContext.Users
+            .AsNoTracking()
             .Include(u => u.Wallet)
             .FirstOrDefaultAsync(u => u.Id == senderUserId, cancellationToken);
 
@@ -69,6 +70,7 @@ public class TransferService : ITransferService
         }
 
         var receiverUser = await _dbContext.Users
+            .AsNoTracking()
             .Include(u => u.Wallet)
             .FirstOrDefaultAsync(u => u.Email == normalizedReceiverEmail, cancellationToken);
 
@@ -90,23 +92,30 @@ public class TransferService : ITransferService
         {
             // Acquire locks in deterministic order if PostgreSQL provider is used
             var providerName = (_dbContext as DbContext)?.Database.ProviderName;
+            Wallet senderWallet;
+            Wallet receiverWallet;
+
             if (providerName != null && providerName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
             {
-                await _dbContext.Wallets
+                var lockedFirst = await _dbContext.Wallets
                     .FromSqlInterpolated($"SELECT * FROM \"Wallets\" WHERE \"Id\" = {firstWalletId} FOR UPDATE")
                     .FirstAsync(cancellationToken);
 
-                await _dbContext.Wallets
+                var lockedSecond = await _dbContext.Wallets
                     .FromSqlInterpolated($"SELECT * FROM \"Wallets\" WHERE \"Id\" = {secondWalletId} FOR UPDATE")
                     .FirstAsync(cancellationToken);
+
+                senderWallet = senderWalletId == firstWalletId ? lockedFirst : lockedSecond;
+                receiverWallet = receiverWalletId == firstWalletId ? lockedFirst : lockedSecond;
             }
+            else
+            {
+                senderWallet = (await _dbContext.Wallets
+                    .FirstOrDefaultAsync(w => w.Id == senderWalletId, cancellationToken))!;
 
-            // Re-query locked wallets inside transaction context
-            var senderWallet = await _dbContext.Wallets
-                .FirstOrDefaultAsync(w => w.Id == senderWalletId, cancellationToken);
-
-            var receiverWallet = await _dbContext.Wallets
-                .FirstOrDefaultAsync(w => w.Id == receiverWalletId, cancellationToken);
+                receiverWallet = (await _dbContext.Wallets
+                    .FirstOrDefaultAsync(w => w.Id == receiverWalletId, cancellationToken))!;
+            }
 
             if (senderWallet == null || receiverWallet == null)
             {
