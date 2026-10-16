@@ -64,6 +64,7 @@ services:
       - Jwt__SecretKey=${JWT_SECRET}
       - Jwt__Issuer=${JWT_ISSUER}
       - Jwt__Audience=${JWT_AUDIENCE}
+      - Cors__AllowedOrigins__0=${FRONTEND_ORIGIN}
     ports:
       - "${PORT:-5000}:8080"
     depends_on:

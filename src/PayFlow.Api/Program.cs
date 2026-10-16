@@ -37,7 +37,27 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-// 3. JWT Authentication Configuration
+// 3. Frontend CORS Configuration
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
+if (allowedOrigins.Length > 0)
+{
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Frontend", policy =>
+        {
+            policy
+                .WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
+}
+
+// 4. JWT Authentication Configuration
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 var key = Encoding.UTF8.GetBytes(jwtOptions.SecretKey);
 
@@ -65,7 +85,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// 4. Rate Limiting Configuration
+// 5. Rate Limiting Configuration
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -78,7 +98,7 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// 5. OpenTelemetry Setup
+// 6. OpenTelemetry Setup
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracerProviderBuilder =>
     {
@@ -96,7 +116,7 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation();
     });
 
-// 6. Health Checks Configuration
+// 7. Health Checks Configuration
 var dbConnection = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured. Set it in appsettings.json or environment variables.");
 var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
@@ -105,7 +125,7 @@ builder.Services.AddHealthChecks()
     .AddNpgSql(dbConnection, name: "postgresql", tags: new[] { "db", "ready" })
     .AddRedis(redisConnection, name: "redis", tags: new[] { "cache", "ready" });
 
-// 7. Controllers & Swagger Configuration
+// 8. Controllers & Swagger Configuration
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -147,6 +167,11 @@ await DbInitializer.SeedDevelopmentDataAsync(app.Services, app.Environment);
 app.UseSerilogRequestLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+if (allowedOrigins.Length > 0)
+{
+    app.UseCors("Frontend");
+}
 
 if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 {
