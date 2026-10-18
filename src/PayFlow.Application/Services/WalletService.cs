@@ -96,6 +96,7 @@ public class WalletService : IWalletService
                 WalletId = SystemConstants.SystemWalletId,
                 EntryType = LedgerEntryType.Debit,
                 Amount = request.Amount,
+                Currency = wallet.Currency,
                 BalanceAfter = 0m,
                 CreatedAtUtc = DateTime.UtcNow
             };
@@ -106,6 +107,7 @@ public class WalletService : IWalletService
                 WalletId = wallet.Id,
                 EntryType = LedgerEntryType.Credit,
                 Amount = request.Amount,
+                Currency = wallet.Currency,
                 BalanceAfter = wallet.Balance,
                 CreatedAtUtc = DateTime.UtcNow
             };
@@ -170,6 +172,7 @@ public class WalletService : IWalletService
                 WalletId = wallet.Id,
                 EntryType = LedgerEntryType.Debit,
                 Amount = request.Amount,
+                Currency = wallet.Currency,
                 BalanceAfter = wallet.Balance,
                 CreatedAtUtc = DateTime.UtcNow
             };
@@ -180,6 +183,7 @@ public class WalletService : IWalletService
                 WalletId = SystemConstants.SystemWalletId,
                 EntryType = LedgerEntryType.Credit,
                 Amount = request.Amount,
+                Currency = wallet.Currency,
                 BalanceAfter = 0m,
                 CreatedAtUtc = DateTime.UtcNow
             };
@@ -214,6 +218,9 @@ public class WalletService : IWalletService
         t.IdempotencyKey,
         t.CreatedAtUtc,
         t.CompletedAtUtc,
-        t.FailureReason
+        t.FailureReason,
+        t.ExchangeRate,
+        t.TargetAmount,
+        t.TargetCurrency
     );
 }

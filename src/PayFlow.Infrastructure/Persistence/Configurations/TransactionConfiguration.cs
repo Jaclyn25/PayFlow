@@ -35,6 +35,16 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .IsRequired()
             .HasMaxLength(10);
 
+        builder.Property(t => t.ExchangeRate)
+            .HasPrecision(18, 6)
+            .IsRequired();
+
+        builder.Property(t => t.TargetAmount)
+            .HasPrecision(18, 4);
+
+        builder.Property(t => t.TargetCurrency)
+            .HasMaxLength(10);
+
         builder.Property(t => t.Description)
             .HasMaxLength(255);
 

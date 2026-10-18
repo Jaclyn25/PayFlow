@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PayFlow.Application.Common.Interfaces;
 using PayFlow.Application.DTOs;
+using PayFlow.Domain.Constants;
 using PayFlow.Domain.Entities;
 using PayFlow.Domain.Enums;
 using PayFlow.Domain.Exceptions;
@@ -13,15 +14,18 @@ public class TransferService : ITransferService
     private readonly IPayFlowDbContext _dbContext;
     private readonly ICacheService _cacheService;
     private readonly IAuditLogService? _auditLogService;
+    private readonly IExchangeRateService? _exchangeRateService;
 
     public TransferService(
         IPayFlowDbContext dbContext,
         ICacheService cacheService,
-        IAuditLogService? auditLogService = null)
+        IAuditLogService? auditLogService = null,
+        IExchangeRateService? exchangeRateService = null)
     {
         _dbContext = dbContext;
         _cacheService = cacheService;
         _auditLogService = auditLogService;
+        _exchangeRateService = exchangeRateService;
     }
 
     public async Task<TransactionResponse> TransferAsync(
@@ -131,9 +135,26 @@ public class TransferService : ITransferService
                 throw new InsufficientBalanceException(senderWallet.Balance, request.Amount);
             }
 
+            var isCrossCurrency = !senderWallet.Currency.Equals(receiverWallet.Currency, StringComparison.OrdinalIgnoreCase);
+            decimal rate = 1.0m;
+            decimal targetAmount = request.Amount;
+
+            if (isCrossCurrency)
+            {
+                if (_exchangeRateService != null)
+                {
+                    rate = await _exchangeRateService.GetExchangeRateAsync(
+                        senderWallet.Currency,
+                        receiverWallet.Currency,
+                        cancellationToken);
+                }
+
+                targetAmount = Math.Round(request.Amount * rate, 2);
+            }
+
             // Execute transfers
             senderWallet.Withdraw(request.Amount);
-            receiverWallet.Deposit(request.Amount);
+            receiverWallet.Deposit(targetAmount);
 
             // Create Transaction record
             var transaction = new Transaction
@@ -143,9 +164,14 @@ public class TransferService : ITransferService
                 Status = TransactionStatus.Completed,
                 Amount = request.Amount,
                 Currency = senderWallet.Currency,
+                ExchangeRate = rate,
+                TargetAmount = targetAmount,
+                TargetCurrency = receiverWallet.Currency,
                 SenderWalletId = senderWallet.Id,
                 ReceiverWalletId = receiverWallet.Id,
-                Description = request.Description ?? $"Transfer to {receiverUser.Email}",
+                Description = request.Description ?? (isCrossCurrency 
+                    ? $"Transfer to {receiverUser.Email} ({senderWallet.Currency} -> {receiverWallet.Currency} @ {rate})" 
+                    : $"Transfer to {receiverUser.Email}"),
                 IdempotencyKey = idempotencyKey,
                 CreatedAtUtc = DateTime.UtcNow,
                 CompletedAtUtc = DateTime.UtcNow
@@ -153,29 +179,88 @@ public class TransferService : ITransferService
 
             _dbContext.Transactions.Add(transaction);
 
-            // Create Double-Entry Ledger Entries (Debit Sender, Credit Receiver)
-            var senderLedger = new LedgerEntry
+            if (!isCrossCurrency)
             {
-                TransactionId = transaction.Id,
-                WalletId = senderWallet.Id,
-                EntryType = LedgerEntryType.Debit,
-                Amount = request.Amount,
-                BalanceAfter = senderWallet.Balance,
-                CreatedAtUtc = DateTime.UtcNow
-            };
+                // Single-Currency Double-Entry Ledger: Debit Sender, Credit Receiver
+                var senderLedger = new LedgerEntry
+                {
+                    TransactionId = transaction.Id,
+                    WalletId = senderWallet.Id,
+                    EntryType = LedgerEntryType.Debit,
+                    Amount = request.Amount,
+                    Currency = senderWallet.Currency,
+                    BalanceAfter = senderWallet.Balance,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
 
-            var receiverLedger = new LedgerEntry
+                var receiverLedger = new LedgerEntry
+                {
+                    TransactionId = transaction.Id,
+                    WalletId = receiverWallet.Id,
+                    EntryType = LedgerEntryType.Credit,
+                    Amount = request.Amount,
+                    Currency = receiverWallet.Currency,
+                    BalanceAfter = receiverWallet.Balance,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                _dbContext.LedgerEntries.Add(senderLedger);
+                _dbContext.LedgerEntries.Add(receiverLedger);
+            }
+            else
             {
-                TransactionId = transaction.Id,
-                WalletId = receiverWallet.Id,
-                EntryType = LedgerEntryType.Credit,
-                Amount = request.Amount,
-                BalanceAfter = receiverWallet.Balance,
-                CreatedAtUtc = DateTime.UtcNow
-            };
+                // Multi-Currency Double-Entry Ledger via System Treasury FX Clearing Account
+                // 1) Source Currency: Debit Sender, Credit System Treasury FX Clearing
+                var senderDebitLedger = new LedgerEntry
+                {
+                    TransactionId = transaction.Id,
+                    WalletId = senderWallet.Id,
+                    EntryType = LedgerEntryType.Debit,
+                    Amount = request.Amount,
+                    Currency = senderWallet.Currency,
+                    BalanceAfter = senderWallet.Balance,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
 
-            _dbContext.LedgerEntries.Add(senderLedger);
-            _dbContext.LedgerEntries.Add(receiverLedger);
+                var systemFxCreditLedger = new LedgerEntry
+                {
+                    TransactionId = transaction.Id,
+                    WalletId = SystemConstants.SystemWalletId,
+                    EntryType = LedgerEntryType.Credit,
+                    Amount = request.Amount,
+                    Currency = senderWallet.Currency,
+                    BalanceAfter = 0m,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                // 2) Destination Currency: Debit System Treasury FX Clearing, Credit Receiver
+                var systemFxDebitLedger = new LedgerEntry
+                {
+                    TransactionId = transaction.Id,
+                    WalletId = SystemConstants.SystemWalletId,
+                    EntryType = LedgerEntryType.Debit,
+                    Amount = targetAmount,
+                    Currency = receiverWallet.Currency,
+                    BalanceAfter = 0m,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                var receiverCreditLedger = new LedgerEntry
+                {
+                    TransactionId = transaction.Id,
+                    WalletId = receiverWallet.Id,
+                    EntryType = LedgerEntryType.Credit,
+                    Amount = targetAmount,
+                    Currency = receiverWallet.Currency,
+                    BalanceAfter = receiverWallet.Balance,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                _dbContext.LedgerEntries.Add(senderDebitLedger);
+                _dbContext.LedgerEntries.Add(systemFxCreditLedger);
+                _dbContext.LedgerEntries.Add(systemFxDebitLedger);
+                _dbContext.LedgerEntries.Add(receiverCreditLedger);
+            }
 
             // Create Outbox Message
             var transferEventPayload = JsonSerializer.Serialize(new
@@ -186,6 +271,9 @@ public class TransferService : ITransferService
                 ReceiverUserId = receiverUser.Id,
                 Amount = request.Amount,
                 Currency = senderWallet.Currency,
+                ExchangeRate = rate,
+                TargetAmount = targetAmount,
+                TargetCurrency = receiverWallet.Currency,
                 OccurredAtUtc = DateTime.UtcNow
             });
 
@@ -273,6 +361,9 @@ public class TransferService : ITransferService
         t.IdempotencyKey,
         t.CreatedAtUtc,
         t.CompletedAtUtc,
-        t.FailureReason
+        t.FailureReason,
+        t.ExchangeRate,
+        t.TargetAmount,
+        t.TargetCurrency
     );
 }

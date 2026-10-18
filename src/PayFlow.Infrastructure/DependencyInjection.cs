@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuditLogService, AuditLogService>();
+        services.AddSingleton<IExchangeRateService, ExchangeRateService>();
 
         // Redis Caching
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";

@@ -119,6 +119,9 @@ public class TransactionService : ITransactionService
         t.IdempotencyKey,
         t.CreatedAtUtc,
         t.CompletedAtUtc,
-        t.FailureReason
+        t.FailureReason,
+        t.ExchangeRate,
+        t.TargetAmount,
+        t.TargetCurrency
     );
 }

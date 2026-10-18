@@ -9,6 +9,7 @@ public class LedgerEntry
     public Guid WalletId { get; set; }
     public LedgerEntryType EntryType { get; set; }
     public decimal Amount { get; set; }
+    public string Currency { get; set; } = "EGP";
     public decimal BalanceAfter { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 

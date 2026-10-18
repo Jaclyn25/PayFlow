@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PayFlow.Application.Common.Interfaces;
 using PayFlow.Application.DTOs;
+using PayFlow.Domain.Constants;
 using PayFlow.Domain.Entities;
 using PayFlow.Domain.Exceptions;
 
@@ -50,11 +51,15 @@ public class AuthService : IAuthService
             UpdatedAtUtc = DateTime.UtcNow
         };
 
+        var selectedCurrency = CurrencyConstants.IsSupported(request.Currency)
+            ? request.Currency.Trim().ToUpperInvariant()
+            : CurrencyConstants.Egp;
+
         var wallet = new Wallet
         {
             UserId = user.Id,
             Balance = 0.00m,
-            Currency = "EGP",
+            Currency = selectedCurrency,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
         };

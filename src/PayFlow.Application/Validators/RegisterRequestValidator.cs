@@ -27,5 +27,9 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
             .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
             .Matches("[0-9]").WithMessage("Password must contain at least one digit.")
             .Matches("[^a-zA-Z0-9]").WithMessage("Password must contain at least one special character.");
+
+        RuleFor(x => x.Currency)
+            .Must(c => string.IsNullOrWhiteSpace(c) || PayFlow.Domain.Constants.CurrencyConstants.IsSupported(c))
+            .WithMessage("Currency must be one of: USD, EUR, GBP, EGP.");
     }
 }
