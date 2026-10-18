@@ -18,6 +18,10 @@ public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
             .HasPrecision(18, 4)
             .IsRequired();
 
+        builder.Property(l => l.Currency)
+            .IsRequired()
+            .HasMaxLength(10);
+
         builder.Property(l => l.BalanceAfter)
             .HasPrecision(18, 4)
             .IsRequired();

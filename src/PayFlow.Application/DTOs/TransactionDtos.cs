@@ -15,7 +15,10 @@ public record TransactionResponse(
     string? IdempotencyKey,
     DateTime CreatedAtUtc,
     DateTime? CompletedAtUtc,
-    string? FailureReason
+    string? FailureReason,
+    decimal ExchangeRate = 1.0m,
+    decimal? TargetAmount = null,
+    string? TargetCurrency = null
 );
 
 public record TransactionFilterParams(

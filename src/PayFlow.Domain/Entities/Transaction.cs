@@ -10,6 +10,9 @@ public class Transaction
     public TransactionStatus Status { get; set; } = TransactionStatus.Pending;
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "EGP";
+    public decimal ExchangeRate { get; set; } = 1.0m;
+    public decimal? TargetAmount { get; set; }
+    public string? TargetCurrency { get; set; }
     public Guid? SenderWalletId { get; set; }
     public Guid? ReceiverWalletId { get; set; }
     public string? Description { get; set; }
