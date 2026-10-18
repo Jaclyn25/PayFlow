@@ -14,6 +14,7 @@ public interface IPayFlowDbContext
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<IdempotencyRecord> IdempotencyRecords { get; }
     DbSet<InboxMessage> InboxMessages { get; }
+    DbSet<AuditLog> AuditLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);

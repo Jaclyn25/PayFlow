@@ -12,13 +12,16 @@ public class TransferService : ITransferService
 {
     private readonly IPayFlowDbContext _dbContext;
     private readonly ICacheService _cacheService;
+    private readonly IAuditLogService? _auditLogService;
 
     public TransferService(
         IPayFlowDbContext dbContext,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IAuditLogService? auditLogService = null)
     {
         _dbContext = dbContext;
         _cacheService = cacheService;
+        _auditLogService = auditLogService;
     }
 
     public async Task<TransactionResponse> TransferAsync(
@@ -212,6 +215,16 @@ public class TransferService : ITransferService
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             await dbTransaction.CommitAsync(cancellationToken);
+
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogAsync(
+                    senderUserId,
+                    "TransferMoney",
+                    transaction.Id.ToString(),
+                    true,
+                    cancellationToken: cancellationToken);
+            }
 
             // Invalidate Redis caches after transaction commit
             await _cacheService.RemoveAsync($"wallet:user:{senderUserId}", cancellationToken);

@@ -17,6 +17,7 @@ public class TransferServiceTests
 {
     private readonly PayFlowDbContext _dbContext;
     private readonly Mock<ICacheService> _cacheServiceMock = new();
+    private readonly Mock<IAuditLogService> _auditLogServiceMock = new();
     private readonly TransferService _transferService;
 
     private readonly User _senderUser;
@@ -61,7 +62,7 @@ public class TransferServiceTests
         _dbContext.Wallets.AddRange(_senderUser.Wallet, _receiverUser.Wallet);
         _dbContext.SaveChanges();
 
-        _transferService = new TransferService(_dbContext, _cacheServiceMock.Object);
+        _transferService = new TransferService(_dbContext, _cacheServiceMock.Object, _auditLogServiceMock.Object);
     }
 
     [Fact]

@@ -23,6 +23,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PayFlow.Api\PayFlow.Api.csproj" />
     <ProjectReference Include="..\..\src\PayFlow.Application\PayFlow.Application.csproj" />
     <ProjectReference Include="..\..\src\PayFlow.Infrastructure\PayFlow.Infrastructure.csproj" />
   </ItemGroup>
