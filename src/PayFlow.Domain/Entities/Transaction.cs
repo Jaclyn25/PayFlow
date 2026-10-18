@@ -20,9 +20,14 @@ public class Transaction
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
     public string? FailureReason { get; set; }
+    public Guid? OriginalTransactionId { get; set; }
+    public Guid? ReversalTransactionId { get; set; }
+    public string? ReversalReason { get; set; }
 
     public Wallet? SenderWallet { get; set; }
     public Wallet? ReceiverWallet { get; set; }
+    public Transaction? OriginalTransaction { get; set; }
+    public Transaction? ReversalTransaction { get; set; }
 
     public static string GenerateReference()
     {

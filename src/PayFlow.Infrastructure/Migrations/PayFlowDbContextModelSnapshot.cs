@@ -283,6 +283,9 @@ namespace PayFlow.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("OriginalTransactionId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ReceiverWalletId")
                         .HasColumnType("uuid");
 
@@ -290,6 +293,13 @@ namespace PayFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ReversalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("ReversalTransactionId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("SenderWalletId")
                         .HasColumnType("uuid");
@@ -312,10 +322,14 @@ namespace PayFlow.Infrastructure.Migrations
 
                     b.HasIndex("CreatedAtUtc");
 
+                    b.HasIndex("OriginalTransactionId");
+
                     b.HasIndex("ReceiverWalletId");
 
                     b.HasIndex("Reference")
                         .IsUnique();
+
+                    b.HasIndex("ReversalTransactionId");
 
                     b.HasIndex("SenderWalletId");
 
@@ -438,9 +452,19 @@ namespace PayFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("PayFlow.Domain.Entities.Transaction", b =>
                 {
+                    b.HasOne("PayFlow.Domain.Entities.Transaction", "OriginalTransaction")
+                        .WithMany()
+                        .HasForeignKey("OriginalTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("PayFlow.Domain.Entities.Wallet", "ReceiverWallet")
                         .WithMany()
                         .HasForeignKey("ReceiverWalletId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PayFlow.Domain.Entities.Transaction", "ReversalTransaction")
+                        .WithMany()
+                        .HasForeignKey("ReversalTransactionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("PayFlow.Domain.Entities.Wallet", "SenderWallet")
@@ -448,7 +472,11 @@ namespace PayFlow.Infrastructure.Migrations
                         .HasForeignKey("SenderWalletId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.Navigation("OriginalTransaction");
+
                     b.Navigation("ReceiverWallet");
+
+                    b.Navigation("ReversalTransaction");
 
                     b.Navigation("SenderWallet");
                 });

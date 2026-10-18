@@ -51,6 +51,9 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.IdempotencyKey)
             .HasMaxLength(100);
 
+        builder.Property(t => t.ReversalReason)
+            .HasMaxLength(500);
+
         builder.HasOne(t => t.SenderWallet)
             .WithMany()
             .HasForeignKey(t => t.SenderWalletId)
@@ -61,8 +64,20 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .HasForeignKey(t => t.ReceiverWalletId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(t => t.OriginalTransaction)
+            .WithMany()
+            .HasForeignKey(t => t.OriginalTransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(t => t.ReversalTransaction)
+            .WithMany()
+            .HasForeignKey(t => t.ReversalTransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(t => t.SenderWalletId);
         builder.HasIndex(t => t.ReceiverWalletId);
+        builder.HasIndex(t => t.OriginalTransactionId);
+        builder.HasIndex(t => t.ReversalTransactionId);
         builder.HasIndex(t => t.CreatedAtUtc);
     }
 }
