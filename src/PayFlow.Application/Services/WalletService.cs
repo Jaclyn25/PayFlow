@@ -221,6 +221,9 @@ public class WalletService : IWalletService
         t.FailureReason,
         t.ExchangeRate,
         t.TargetAmount,
-        t.TargetCurrency
+        t.TargetCurrency,
+        t.OriginalTransactionId,
+        t.ReversalTransactionId,
+        t.ReversalReason
     );
 }

@@ -27,4 +27,5 @@ public interface ITransactionService
 {
     Task<PagedResult<TransactionResponse>> GetTransactionsAsync(Guid userId, TransactionFilterParams filterParams, CancellationToken cancellationToken = default);
     Task<TransactionResponse> GetTransactionByIdAsync(Guid userId, Guid transactionId, CancellationToken cancellationToken = default);
+    Task<TransactionResponse> ReverseTransactionAsync(Guid userId, Guid transactionId, ReverseTransactionRequest request, string? idempotencyKey = null, CancellationToken cancellationToken = default);
 }

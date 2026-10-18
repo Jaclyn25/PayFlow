@@ -2,6 +2,10 @@ using PayFlow.Domain.Enums;
 
 namespace PayFlow.Application.DTOs;
 
+public record ReverseTransactionRequest(
+    string Reason
+);
+
 public record TransactionResponse(
     Guid Id,
     string Reference,
@@ -18,7 +22,10 @@ public record TransactionResponse(
     string? FailureReason,
     decimal ExchangeRate = 1.0m,
     decimal? TargetAmount = null,
-    string? TargetCurrency = null
+    string? TargetCurrency = null,
+    Guid? OriginalTransactionId = null,
+    Guid? ReversalTransactionId = null,
+    string? ReversalReason = null
 );
 
 public record TransactionFilterParams(

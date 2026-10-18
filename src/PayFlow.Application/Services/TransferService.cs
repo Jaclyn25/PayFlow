@@ -364,6 +364,9 @@ public class TransferService : ITransferService
         t.FailureReason,
         t.ExchangeRate,
         t.TargetAmount,
-        t.TargetCurrency
+        t.TargetCurrency,
+        t.OriginalTransactionId,
+        t.ReversalTransactionId,
+        t.ReversalReason
     );
 }
