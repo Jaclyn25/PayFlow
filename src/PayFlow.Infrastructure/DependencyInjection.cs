@@ -7,6 +7,7 @@ using PayFlow.Infrastructure.Caching;
 using PayFlow.Infrastructure.Messaging;
 using PayFlow.Infrastructure.Persistence;
 using PayFlow.Infrastructure.Security;
+using PayFlow.Infrastructure.Services;
 
 namespace PayFlow.Infrastructure;
 
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IAuditLogService, AuditLogService>();
 
         // Redis Caching
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";

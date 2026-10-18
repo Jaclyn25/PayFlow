@@ -19,6 +19,7 @@ public class PayFlowDbContext : DbContext, IPayFlowDbContext
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {

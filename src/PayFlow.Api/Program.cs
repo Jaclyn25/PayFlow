@@ -138,14 +138,30 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<IdempotencyHeaderOperationFilter>();
 });
 
+// 8. CORS Configuration
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173", "http://localhost:3000" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("PayFlowCorsPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
 
-// 8. Development Database Seeding
+// 9. Development Database Seeding
 await DbInitializer.SeedDevelopmentDataAsync(app.Services, app.Environment);
 
-// 9. Middleware Pipeline
+// 10. Middleware Pipeline
 app.UseSerilogRequestLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
@@ -155,6 +171,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 }
 
 app.UseRouting();
+app.UseCors("PayFlowCorsPolicy");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

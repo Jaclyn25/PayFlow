@@ -11,15 +11,18 @@ public class AuthService : IAuthService
     private readonly IPayFlowDbContext _dbContext;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IAuditLogService? _auditLogService;
 
     public AuthService(
         IPayFlowDbContext dbContext,
         IPasswordHasher passwordHasher,
-        IJwtTokenGenerator jwtTokenGenerator)
+        IJwtTokenGenerator jwtTokenGenerator,
+        IAuditLogService? auditLogService = null)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _auditLogService = auditLogService;
     }
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
@@ -75,6 +78,16 @@ public class AuthService : IAuthService
         _dbContext.RefreshTokens.Add(refreshToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        if (_auditLogService != null)
+        {
+            await _auditLogService.LogAsync(
+                user.Id,
+                "UserRegister",
+                user.Id.ToString(),
+                true,
+                cancellationToken: cancellationToken);
+        }
+
         var userProfile = new UserProfileResponse(
             user.Id,
             user.FirstName,
@@ -101,6 +114,17 @@ public class AuthService : IAuthService
 
         if (user == null || !user.IsActive || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogAsync(
+                    user?.Id,
+                    "UserLogin",
+                    normalizedEmail,
+                    false,
+                    "Invalid email or password.",
+                    cancellationToken);
+            }
+
             throw new UnauthorizedDomainException("Invalid email or password.");
         }
 
@@ -117,6 +141,16 @@ public class AuthService : IAuthService
 
         _dbContext.RefreshTokens.Add(refreshToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (_auditLogService != null)
+        {
+            await _auditLogService.LogAsync(
+                user.Id,
+                "UserLogin",
+                user.Id.ToString(),
+                true,
+                cancellationToken: cancellationToken);
+        }
 
         var userProfile = new UserProfileResponse(
             user.Id,
@@ -150,6 +184,17 @@ public class AuthService : IAuthService
 
         if (existingToken == null || !existingToken.IsActive || existingToken.User == null || !existingToken.User.IsActive)
         {
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogAsync(
+                    existingToken?.UserId,
+                    "TokenRefresh",
+                    null,
+                    false,
+                    "Invalid or expired refresh token.",
+                    cancellationToken);
+            }
+
             throw new UnauthorizedDomainException("Invalid or expired refresh token.");
         }
 
@@ -171,6 +216,16 @@ public class AuthService : IAuthService
 
         _dbContext.RefreshTokens.Add(newRefreshToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (_auditLogService != null)
+        {
+            await _auditLogService.LogAsync(
+                existingToken.User.Id,
+                "TokenRefresh",
+                existingToken.User.Id.ToString(),
+                true,
+                cancellationToken: cancellationToken);
+        }
 
         var userProfile = new UserProfileResponse(
             existingToken.User.Id,
@@ -205,6 +260,16 @@ public class AuthService : IAuthService
         {
             existingToken.RevokedAtUtc = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync(cancellationToken);
+
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogAsync(
+                    existingToken.UserId,
+                    "TokenRevoke",
+                    existingToken.UserId.ToString(),
+                    true,
+                    cancellationToken: cancellationToken);
+            }
         }
     }
 

@@ -17,6 +17,7 @@ public class AuthServiceTests
     private readonly PayFlowDbContext _dbContext;
     private readonly Mock<IPasswordHasher> _passwordHasherMock = new();
     private readonly Mock<IJwtTokenGenerator> _jwtTokenGeneratorMock = new();
+    private readonly Mock<IAuditLogService> _auditLogServiceMock = new();
     private readonly AuthService _authService;
 
     public AuthServiceTests()
@@ -40,7 +41,11 @@ public class AuthServiceTests
         _jwtTokenGeneratorMock.Setup(j => j.HashToken(It.IsAny<string>()))
             .Returns<string>(token => $"hashed_{token}");
 
-        _authService = new AuthService(_dbContext, _passwordHasherMock.Object, _jwtTokenGeneratorMock.Object);
+        _authService = new AuthService(
+            _dbContext,
+            _passwordHasherMock.Object,
+            _jwtTokenGeneratorMock.Object,
+            _auditLogServiceMock.Object);
     }
 
     [Fact]
