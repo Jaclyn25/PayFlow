@@ -63,7 +63,27 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(PayFlow.Domain.Constants.RoleConstants.RequireAdminRole, policy =>
+        policy.RequireRole(
+            PayFlow.Domain.Constants.RoleConstants.SystemAdmin,
+            PayFlow.Domain.Constants.RoleConstants.Admin));
+
+    options.AddPolicy(PayFlow.Domain.Constants.RoleConstants.RequireAuditorRole, policy =>
+        policy.RequireRole(
+            PayFlow.Domain.Constants.RoleConstants.ComplianceOfficer,
+            PayFlow.Domain.Constants.RoleConstants.Auditor,
+            PayFlow.Domain.Constants.RoleConstants.SystemAdmin,
+            PayFlow.Domain.Constants.RoleConstants.Admin));
+
+    options.AddPolicy(PayFlow.Domain.Constants.RoleConstants.RequireElevatedRole, policy =>
+        policy.RequireRole(
+            PayFlow.Domain.Constants.RoleConstants.SystemAdmin,
+            PayFlow.Domain.Constants.RoleConstants.ComplianceOfficer,
+            PayFlow.Domain.Constants.RoleConstants.Admin,
+            PayFlow.Domain.Constants.RoleConstants.Auditor));
+});
 
 // 4. Rate Limiting Configuration
 builder.Services.AddRateLimiter(options =>

@@ -416,6 +416,13 @@ namespace PayFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Customer");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -456,6 +463,18 @@ namespace PayFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<string>("FreezeReason")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("FrozenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsFrozen")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");

@@ -23,11 +23,14 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.UTF8.GetBytes(_options.SecretKey);
 
+        var roleName = user.Role.ToString();
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, roleName),
+            new("role", roleName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

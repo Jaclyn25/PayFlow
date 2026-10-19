@@ -95,6 +95,16 @@ public class TransferService : ITransferService
             throw new UserNotFoundException(request.ReceiverEmail);
         }
 
+        if (senderUser.Wallet.IsFrozen)
+        {
+            throw new InvalidTransactionException("Sender wallet is frozen and cannot initiate transfers.");
+        }
+
+        if (receiverUser.Wallet.IsFrozen)
+        {
+            throw new InvalidTransactionException("Receiver wallet is frozen and cannot receive transfers.");
+        }
+
         var senderWalletId = senderUser.Wallet.Id;
         var receiverWalletId = receiverUser.Wallet.Id;
 

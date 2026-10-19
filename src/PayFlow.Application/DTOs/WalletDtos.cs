@@ -15,5 +15,8 @@ public record WalletResponse(
     Guid UserId,
     decimal Balance,
     string Currency,
-    DateTime UpdatedAtUtc
+    DateTime UpdatedAtUtc,
+    bool IsFrozen = false,
+    string? FreezeReason = null
 );
+

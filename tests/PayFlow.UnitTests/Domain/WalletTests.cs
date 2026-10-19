@@ -76,4 +76,35 @@ public class WalletTests
         actZero.Should().Throw<InvalidTransactionException>();
         actNegative.Should().Throw<InvalidTransactionException>();
     }
+
+    [Fact]
+    public void Deposit_WhenWalletIsFrozen_ThrowsInvalidTransactionException()
+    {
+        // Arrange
+        var wallet = new Wallet { Balance = 100.00m };
+        wallet.Freeze("Investigation");
+
+        // Act
+        var act = () => wallet.Deposit(50.00m);
+
+        // Assert
+        act.Should().Throw<InvalidTransactionException>()
+            .WithMessage("*frozen wallet*");
+    }
+
+    [Fact]
+    public void Withdraw_WhenWalletIsFrozen_ThrowsInvalidTransactionException()
+    {
+        // Arrange
+        var wallet = new Wallet { Balance = 100.00m };
+        wallet.Freeze("Investigation");
+
+        // Act
+        var act = () => wallet.Withdraw(50.00m);
+
+        // Assert
+        act.Should().Throw<InvalidTransactionException>()
+            .WithMessage("*frozen wallet*");
+    }
 }
+
