@@ -25,5 +25,12 @@ public class WalletConfiguration : IEntityTypeConfiguration<Wallet>
 
         builder.Property(w => w.Version)
             .IsConcurrencyToken();
+
+        builder.Property(w => w.IsFrozen)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(w => w.FreezeReason)
+            .HasMaxLength(256);
     }
 }

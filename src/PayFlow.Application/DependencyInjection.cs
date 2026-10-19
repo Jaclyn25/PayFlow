@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<IFeeService, FeeService>();
         services.AddScoped<IStatementService, StatementService>();
         services.AddScoped<IKycLimitService, KycLimitService>();
+        services.AddScoped<IAdminService, AdminService>();
 
         return services;
     }

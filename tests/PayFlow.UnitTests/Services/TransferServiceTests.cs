@@ -227,6 +227,43 @@ public class TransferServiceTests
         var senderWallet = await _dbContext.Wallets.FindAsync(_senderUser.Wallet!.Id);
         senderWallet!.Balance.Should().Be(1000.00m);
     }
+
+    [Fact]
+    public async Task TransferAsync_WhenSenderWalletIsFrozen_ThrowsInvalidTransactionException()
+    {
+        // Arrange
+        _senderUser.Wallet!.Freeze("Account flagged");
+        await _dbContext.SaveChangesAsync();
+
+        var request = new TransferRequest("bob@payflow.local", 100.00m, "Payment");
+        var idempotencyKey = Guid.NewGuid().ToString();
+
+        // Act
+        var act = () => _transferService.TransferAsync(_senderUser.Id, idempotencyKey, request);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidTransactionException>()
+            .WithMessage("*Sender wallet is frozen*");
+    }
+
+    [Fact]
+    public async Task TransferAsync_WhenReceiverWalletIsFrozen_ThrowsInvalidTransactionException()
+    {
+        // Arrange
+        _receiverUser.Wallet!.Freeze("Under audit");
+        await _dbContext.SaveChangesAsync();
+
+        var request = new TransferRequest("bob@payflow.local", 100.00m, "Payment");
+        var idempotencyKey = Guid.NewGuid().ToString();
+
+        // Act
+        var act = () => _transferService.TransferAsync(_senderUser.Id, idempotencyKey, request);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidTransactionException>()
+            .WithMessage("*Receiver wallet is frozen*");
+    }
 }
+
 
 

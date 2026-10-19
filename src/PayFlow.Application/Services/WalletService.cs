@@ -45,7 +45,9 @@ public class WalletService : IWalletService
             wallet.UserId,
             wallet.Balance,
             wallet.Currency,
-            wallet.UpdatedAtUtc
+            wallet.UpdatedAtUtc,
+            wallet.IsFrozen,
+            wallet.FreezeReason
         );
 
         await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(5), cancellationToken);

@@ -28,6 +28,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash)
             .IsRequired();
 
+        builder.Property(u => u.Role)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(PayFlow.Domain.Enums.UserRole.Customer)
+            .HasSentinel((PayFlow.Domain.Enums.UserRole)(-1))
+            .IsRequired();
+
         builder.Property(u => u.KycTier)
             .HasConversion<int>()
             .HasDefaultValue(PayFlow.Domain.Enums.KycTier.Tier1)

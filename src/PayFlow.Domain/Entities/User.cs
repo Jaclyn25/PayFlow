@@ -10,6 +10,7 @@ public class User
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public UserRole Role { get; set; } = UserRole.Customer;
     public KycTier KycTier { get; set; } = KycTier.Tier1;
     public DateTime? KycVerifiedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

@@ -38,6 +38,8 @@ public record UserProfileResponse(
     bool IsActive,
     DateTime CreatedAtUtc,
     string KycTier = "Tier1",
-    bool TwoFactorEnabled = false
+    bool TwoFactorEnabled = false,
+    string Role = "Customer"
 );
+
 
