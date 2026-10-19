@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IFeeService, FeeService>();
         services.AddScoped<IStatementService, StatementService>();
+        services.AddScoped<IKycLimitService, KycLimitService>();
 
         return services;
     }

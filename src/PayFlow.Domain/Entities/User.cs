@@ -1,3 +1,5 @@
+using PayFlow.Domain.Enums;
+
 namespace PayFlow.Domain.Entities;
 
 public class User
@@ -8,6 +10,8 @@ public class User
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public KycTier KycTier { get; set; } = KycTier.Tier1;
+    public DateTime? KycVerifiedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 

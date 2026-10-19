@@ -87,4 +87,19 @@ public class AuthController : ControllerBase
         var profile = await _authService.GetProfileAsync(userId, cancellationToken);
         return Ok(profile);
     }
+
+    [Authorize]
+    [HttpPut("kyc-tier")]
+    [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateKycTier(
+        [FromBody] UpdateKycTierRequest request,
+        [FromServices] IKycLimitService kycLimitService,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        var profile = await kycLimitService.UpdateUserTierAsync(userId, request.Tier, cancellationToken);
+        return Ok(profile);
+    }
 }
+
