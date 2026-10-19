@@ -6,6 +6,17 @@ public record ReverseTransactionRequest(
     string Reason
 );
 
+public record FeeQuoteResponse(
+    decimal Amount,
+    decimal FeeAmount,
+    decimal GrossAmount,
+    decimal NetAmount,
+    string Currency,
+    decimal Percentage,
+    decimal FixedFee,
+    decimal? CapAmount
+);
+
 public record TransactionResponse(
     Guid Id,
     string Reference,
@@ -25,7 +36,10 @@ public record TransactionResponse(
     string? TargetCurrency = null,
     Guid? OriginalTransactionId = null,
     Guid? ReversalTransactionId = null,
-    string? ReversalReason = null
+    string? ReversalReason = null,
+    decimal FeeAmount = 0.00m,
+    decimal? GrossAmount = null,
+    decimal? NetAmount = null
 );
 
 public record TransactionFilterParams(

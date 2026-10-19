@@ -279,6 +279,12 @@ namespace PayFlow.Infrastructure.Migrations
                     b.Property<string>("FailureReason")
                         .HasColumnType("text");
 
+                    b.Property<decimal>("FeeAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0.00m);
+
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");

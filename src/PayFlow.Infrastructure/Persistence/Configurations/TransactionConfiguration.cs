@@ -31,6 +31,14 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .HasPrecision(18, 4)
             .IsRequired();
 
+        builder.Property(t => t.FeeAmount)
+            .HasPrecision(18, 4)
+            .HasDefaultValue(0.00m)
+            .IsRequired();
+
+        builder.Ignore(t => t.GrossAmount);
+        builder.Ignore(t => t.NetAmount);
+
         builder.Property(t => t.Currency)
             .IsRequired()
             .HasMaxLength(10);

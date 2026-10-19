@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PayFlow.Application.Common.Interfaces;
+using PayFlow.Application.Common.Options;
 using PayFlow.Infrastructure.BackgroundJobs;
 using PayFlow.Infrastructure.Caching;
 using PayFlow.Infrastructure.Messaging;
@@ -26,6 +27,7 @@ public static class DependencyInjection
 
         // Security & Auth Options
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<FeeOptions>(configuration.GetSection(FeeOptions.SectionName));
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuditLogService, AuditLogService>();
