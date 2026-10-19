@@ -345,6 +345,38 @@ namespace PayFlow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PayFlow.Domain.Entities.TwoFactorRecoveryCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("UsedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CodeHash");
+
+                    b.ToTable("TwoFactorRecoveryCodes");
+                });
+
             modelBuilder.Entity("PayFlow.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -383,6 +415,18 @@ namespace PayFlow.Infrastructure.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("TwoFactorEnabledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TwoFactorSecret")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -495,6 +539,17 @@ namespace PayFlow.Infrastructure.Migrations
                     b.Navigation("SenderWallet");
                 });
 
+            modelBuilder.Entity("PayFlow.Domain.Entities.TwoFactorRecoveryCode", b =>
+                {
+                    b.HasOne("PayFlow.Domain.Entities.User", "User")
+                        .WithMany("TwoFactorRecoveryCodes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PayFlow.Domain.Entities.Wallet", b =>
                 {
                     b.HasOne("PayFlow.Domain.Entities.User", "User")
@@ -509,6 +564,8 @@ namespace PayFlow.Infrastructure.Migrations
             modelBuilder.Entity("PayFlow.Domain.Entities.User", b =>
                 {
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("TwoFactorRecoveryCodes");
 
                     b.Navigation("Wallet");
                 });

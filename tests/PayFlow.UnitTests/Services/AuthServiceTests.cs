@@ -61,7 +61,7 @@ public class AuthServiceTests
         response.Should().NotBeNull();
         response.AccessToken.Should().Be("access_token_123");
         response.RefreshToken.Should().Be("raw_refresh_token_123");
-        response.User.Email.Should().Be("alice@example.com");
+        response.User!.Email.Should().Be("alice@example.com");
 
         var userInDb = await _dbContext.Users.Include(u => u.Wallet).FirstOrDefaultAsync(u => u.Email == "alice@example.com");
         userInDb.Should().NotBeNull();
@@ -156,4 +156,36 @@ public class AuthServiceTests
         await act.Should().ThrowAsync<UnauthorizedDomainException>()
             .WithMessage("*Invalid or expired refresh token*");
     }
+
+    [Fact]
+    public async Task LoginAsync_WhenTwoFactorEnabled_ReturnsRequiresTwoFactorChallenge()
+    {
+        // Arrange
+        _jwtTokenGeneratorMock.Setup(j => j.GenerateTwoFactorChallengeToken(It.IsAny<User>()))
+            .Returns("two_factor_challenge_ticket");
+
+        var user = new User
+        {
+            FirstName = "Bob",
+            LastName = "Taylor",
+            Email = "bob@example.com",
+            PasswordHash = "hashed_password",
+            TwoFactorEnabled = true
+        };
+        _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync();
+
+        var loginRequest = new LoginRequest("bob@example.com", "Password123!");
+
+        // Act
+        var response = await _authService.LoginAsync(loginRequest);
+
+        // Assert
+        response.Should().NotBeNull();
+        response.RequiresTwoFactor.Should().BeTrue();
+        response.TwoFactorToken.Should().Be("two_factor_challenge_ticket");
+        response.AccessToken.Should().BeEmpty();
+        response.User.Should().BeNull();
+    }
 }
+

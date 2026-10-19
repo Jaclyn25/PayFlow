@@ -101,5 +101,93 @@ public class AuthController : ControllerBase
         var profile = await kycLimitService.UpdateUserTierAsync(userId, request.Tier, cancellationToken);
         return Ok(profile);
     }
+
+    [Authorize]
+    [HttpPost("2fa/setup")]
+    [ProducesResponseType(typeof(TwoFactorSetupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> SetupTwoFactor(
+        [FromServices] ITwoFactorAuthService twoFactorService,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        var setup = await twoFactorService.SetupAsync(userId, cancellationToken);
+        return Ok(setup);
+    }
+
+    [Authorize]
+    [HttpPost("2fa/enable")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> EnableTwoFactor(
+        [FromBody] EnableTwoFactorRequest request,
+        [FromServices] ITwoFactorAuthService twoFactorService,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        var success = await twoFactorService.EnableAsync(userId, request.Code, cancellationToken);
+        if (!success)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Code",
+                Detail = "The provided two-factor authentication code is invalid or expired.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        return Ok(new { enabled = true, message = "Two-factor authentication has been successfully enabled." });
+    }
+
+    [Authorize]
+    [HttpPost("2fa/disable")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> DisableTwoFactor(
+        [FromBody] DisableTwoFactorRequest request,
+        [FromServices] ITwoFactorAuthService twoFactorService,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        var success = await twoFactorService.DisableAsync(userId, request.Code, cancellationToken);
+        if (!success)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Code",
+                Detail = "The provided two-factor authentication code or recovery code is invalid.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        return Ok(new { enabled = false, message = "Two-factor authentication has been disabled." });
+    }
+
+    [Authorize]
+    [HttpGet("2fa/status")]
+    [ProducesResponseType(typeof(TwoFactorStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetTwoFactorStatus(
+        [FromServices] ITwoFactorAuthService twoFactorService,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        var status = await twoFactorService.GetStatusAsync(userId, cancellationToken);
+        return Ok(status);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("2fa/verify")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> VerifyTwoFactor(
+        [FromBody] VerifyTwoFactorRequest request,
+        [FromServices] ITwoFactorAuthService twoFactorService,
+        CancellationToken cancellationToken)
+    {
+        var authResponse = await twoFactorService.VerifyTwoFactorLoginAsync(request, cancellationToken);
+        return Ok(authResponse);
+    }
 }
+
 

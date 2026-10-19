@@ -30,11 +30,13 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<FeeOptions>(configuration.GetSection(FeeOptions.SectionName));
         services.Configure<KycOptions>(configuration.GetSection(KycOptions.SectionName));
+        services.Configure<TwoFactorOptions>(configuration.GetSection(TwoFactorOptions.SectionName));
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddSingleton<IExchangeRateService, ExchangeRateService>();
         services.AddSingleton<IStatementReportGenerator, StatementReportGenerator>();
+        services.AddScoped<ITwoFactorAuthService, TwoFactorAuthService>();
 
         // Redis Caching
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";

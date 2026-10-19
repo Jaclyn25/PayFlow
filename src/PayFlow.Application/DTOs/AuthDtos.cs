@@ -25,7 +25,9 @@ public record AuthResponse(
     string AccessToken,
     string RefreshToken,
     DateTime AccessTokenExpiresAtUtc,
-    UserProfileResponse User
+    UserProfileResponse? User,
+    bool RequiresTwoFactor = false,
+    string? TwoFactorToken = null
 );
 
 public record UserProfileResponse(
@@ -35,5 +37,7 @@ public record UserProfileResponse(
     string Email,
     bool IsActive,
     DateTime CreatedAtUtc,
-    string KycTier = "Tier1"
+    string KycTier = "Tier1",
+    bool TwoFactorEnabled = false
 );
+

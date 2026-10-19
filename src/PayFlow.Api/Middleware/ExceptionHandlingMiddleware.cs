@@ -69,6 +69,18 @@ public class ExceptionHandlingMiddleware
                 }
             ),
 
+            TwoFactorRequiredException tfaEx => (
+                HttpStatusCode.Forbidden,
+                "Two-Factor Authentication Required",
+                tfaEx.Message,
+                new Dictionary<string, string[]>
+                {
+                    ["twoFactor"] = new[] { "High-value transfers require two-factor authentication verification." },
+                    ["thresholdAmount"] = new[] { tfaEx.ThresholdAmount.ToString("F2") },
+                    ["attemptedAmount"] = new[] { tfaEx.AttemptedAmount.ToString("F2") }
+                }
+            ),
+
             InvalidTransactionException invEx => (
                 HttpStatusCode.BadRequest,
                 "Invalid Transaction Request",

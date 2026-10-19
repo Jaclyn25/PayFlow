@@ -99,7 +99,9 @@ public class AuthService : IAuthService
             user.LastName,
             user.Email,
             user.IsActive,
-            user.CreatedAtUtc
+            user.CreatedAtUtc,
+            user.KycTier.ToString(),
+            user.TwoFactorEnabled
         );
 
         return new AuthResponse(
@@ -133,6 +135,19 @@ public class AuthService : IAuthService
             throw new UnauthorizedDomainException("Invalid email or password.");
         }
 
+        if (user.TwoFactorEnabled)
+        {
+            var twoFactorChallengeTicket = _jwtTokenGenerator.GenerateTwoFactorChallengeToken(user);
+            return new AuthResponse(
+                AccessToken: string.Empty,
+                RefreshToken: string.Empty,
+                AccessTokenExpiresAtUtc: DateTime.UtcNow.AddMinutes(5),
+                User: null,
+                RequiresTwoFactor: true,
+                TwoFactorToken: twoFactorChallengeTicket
+            );
+        }
+
         var (accessToken, rawRefreshToken, refreshTokenExpiresAt) = _jwtTokenGenerator.GenerateTokens(user);
         var tokenHash = _jwtTokenGenerator.HashToken(rawRefreshToken);
 
@@ -163,7 +178,9 @@ public class AuthService : IAuthService
             user.LastName,
             user.Email,
             user.IsActive,
-            user.CreatedAtUtc
+            user.CreatedAtUtc,
+            user.KycTier.ToString(),
+            user.TwoFactorEnabled
         );
 
         return new AuthResponse(
@@ -238,7 +255,9 @@ public class AuthService : IAuthService
             existingToken.User.LastName,
             existingToken.User.Email,
             existingToken.User.IsActive,
-            existingToken.User.CreatedAtUtc
+            existingToken.User.CreatedAtUtc,
+            existingToken.User.KycTier.ToString(),
+            existingToken.User.TwoFactorEnabled
         );
 
         return new AuthResponse(
@@ -296,7 +315,8 @@ public class AuthService : IAuthService
             user.Email,
             user.IsActive,
             user.CreatedAtUtc,
-            user.KycTier.ToString()
+            user.KycTier.ToString(),
+            user.TwoFactorEnabled
         );
     }
 }

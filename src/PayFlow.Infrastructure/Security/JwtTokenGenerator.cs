@@ -57,6 +57,77 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         return Convert.ToBase64String(hash);
     }
 
+    public string GenerateTwoFactorChallengeToken(User user)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = Encoding.UTF8.GetBytes(_options.SecretKey);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new("purpose", "2fa_challenge"),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(5),
+            Issuer = _options.Issuer,
+            Audience = _options.Audience,
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+        };
+
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(token);
+    }
+
+    public (bool IsValid, Guid UserId) ValidateTwoFactorChallengeToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return (false, Guid.Empty);
+        }
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = Encoding.UTF8.GetBytes(_options.SecretKey);
+
+        try
+        {
+            var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = true,
+                ValidIssuer = _options.Issuer,
+                ValidateAudience = true,
+                ValidAudience = _options.Audience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromSeconds(30)
+            }, out _);
+
+            var purposeClaim = principal.FindFirst("purpose")?.Value;
+            if (purposeClaim != "2fa_challenge")
+            {
+                return (false, Guid.Empty);
+            }
+
+            var subClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value 
+                        ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (Guid.TryParse(subClaim, out var userId))
+            {
+                return (true, userId);
+            }
+
+            return (false, Guid.Empty);
+        }
+        catch
+        {
+            return (false, Guid.Empty);
+        }
+    }
+
     private static string GenerateSecureRandomToken()
     {
         var randomBytes = new byte[64];
@@ -65,3 +136,4 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         return Convert.ToBase64String(randomBytes);
     }
 }
+
