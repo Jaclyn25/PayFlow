@@ -254,7 +254,18 @@ public class TransactionService : ITransactionService
 
                 // Balance mutation
                 receiverWallet.Withdraw(debitAmount);
-                senderWallet.Deposit(creditAmount);
+                senderWallet.Deposit(creditAmount + originalTxn.FeeAmount);
+
+                Wallet? systemTreasuryWallet = null;
+                if (originalTxn.FeeAmount > 0)
+                {
+                    systemTreasuryWallet = await _dbContext.Wallets.FirstOrDefaultAsync(w => w.Id == SystemConstants.SystemWalletId, cancellationToken);
+                    if (systemTreasuryWallet != null)
+                    {
+                        systemTreasuryWallet.Balance -= originalTxn.FeeAmount;
+                        systemTreasuryWallet.UpdatedAtUtc = DateTime.UtcNow;
+                    }
+                }
 
                 reversalTxn = new Transaction
                 {
@@ -262,6 +273,7 @@ public class TransactionService : ITransactionService
                     Type = TransactionType.Reversal,
                     Status = TransactionStatus.Completed,
                     Amount = originalTxn.Amount,
+                    FeeAmount = originalTxn.FeeAmount,
                     Currency = originalTxn.Currency,
                     ExchangeRate = originalTxn.ExchangeRate,
                     TargetAmount = originalTxn.TargetAmount,
@@ -300,7 +312,7 @@ public class TransactionService : ITransactionService
                         TransactionId = reversalTxn.Id,
                         WalletId = senderWallet.Id,
                         EntryType = LedgerEntryType.Credit,
-                        Amount = originalTxn.Amount,
+                        Amount = originalTxn.Amount + originalTxn.FeeAmount,
                         Currency = originalTxn.Currency,
                         BalanceAfter = senderWallet.Balance,
                         CreatedAtUtc = DateTime.UtcNow
@@ -308,6 +320,21 @@ public class TransactionService : ITransactionService
 
                     _dbContext.LedgerEntries.Add(receiverDebitLedger);
                     _dbContext.LedgerEntries.Add(senderCreditLedger);
+
+                    if (originalTxn.FeeAmount > 0)
+                    {
+                        var systemTreasuryFeeDebit = new LedgerEntry
+                        {
+                            TransactionId = reversalTxn.Id,
+                            WalletId = SystemConstants.SystemWalletId,
+                            EntryType = LedgerEntryType.Debit,
+                            Amount = originalTxn.FeeAmount,
+                            Currency = originalTxn.Currency,
+                            BalanceAfter = systemTreasuryWallet?.Balance ?? 0m,
+                            CreatedAtUtc = DateTime.UtcNow
+                        };
+                        _dbContext.LedgerEntries.Add(systemTreasuryFeeDebit);
+                    }
                 }
                 else
                 {
@@ -351,7 +378,7 @@ public class TransactionService : ITransactionService
                         TransactionId = reversalTxn.Id,
                         WalletId = senderWallet.Id,
                         EntryType = LedgerEntryType.Credit,
-                        Amount = creditAmount,
+                        Amount = creditAmount + originalTxn.FeeAmount,
                         Currency = originalTxn.Currency,
                         BalanceAfter = senderWallet.Balance,
                         CreatedAtUtc = DateTime.UtcNow
@@ -361,6 +388,21 @@ public class TransactionService : ITransactionService
                     _dbContext.LedgerEntries.Add(systemFxCreditLedger);
                     _dbContext.LedgerEntries.Add(systemFxDebitLedger);
                     _dbContext.LedgerEntries.Add(senderCreditLedger);
+
+                    if (originalTxn.FeeAmount > 0)
+                    {
+                        var systemTreasuryFeeDebit = new LedgerEntry
+                        {
+                            TransactionId = reversalTxn.Id,
+                            WalletId = SystemConstants.SystemWalletId,
+                            EntryType = LedgerEntryType.Debit,
+                            Amount = originalTxn.FeeAmount,
+                            Currency = originalTxn.Currency,
+                            BalanceAfter = systemTreasuryWallet?.Balance ?? 0m,
+                            CreatedAtUtc = DateTime.UtcNow
+                        };
+                        _dbContext.LedgerEntries.Add(systemTreasuryFeeDebit);
+                    }
                 }
             }
             else if (originalTxn.Type == TransactionType.Deposit)
@@ -619,6 +661,9 @@ public class TransactionService : ITransactionService
         t.TargetCurrency,
         t.OriginalTransactionId,
         t.ReversalTransactionId,
-        t.ReversalReason
+        t.ReversalReason,
+        t.FeeAmount,
+        t.GrossAmount,
+        t.NetAmount
     );
 }

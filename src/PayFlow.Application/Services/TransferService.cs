@@ -15,17 +15,20 @@ public class TransferService : ITransferService
     private readonly ICacheService _cacheService;
     private readonly IAuditLogService? _auditLogService;
     private readonly IExchangeRateService? _exchangeRateService;
+    private readonly IFeeService? _feeService;
 
     public TransferService(
         IPayFlowDbContext dbContext,
         ICacheService cacheService,
         IAuditLogService? auditLogService = null,
-        IExchangeRateService? exchangeRateService = null)
+        IExchangeRateService? exchangeRateService = null,
+        IFeeService? feeService = null)
     {
         _dbContext = dbContext;
         _cacheService = cacheService;
         _auditLogService = auditLogService;
         _exchangeRateService = exchangeRateService;
+        _feeService = feeService;
     }
 
     public async Task<TransactionResponse> TransferAsync(
@@ -129,10 +132,18 @@ public class TransferService : ITransferService
                 throw new WalletNotFoundException("Wallet missing during transaction execution.");
             }
 
-            // Invariant & Balance check
-            if (senderWallet.Balance < request.Amount)
+            // Fee calculation
+            var feeAmount = 0.00m;
+            if (_feeService != null)
             {
-                throw new InsufficientBalanceException(senderWallet.Balance, request.Amount);
+                feeAmount = _feeService.CalculateFee(request.Amount, senderWallet.Currency);
+            }
+            var grossDebitAmount = request.Amount + feeAmount;
+
+            // Invariant & Balance check
+            if (senderWallet.Balance < grossDebitAmount)
+            {
+                throw new InsufficientBalanceException(senderWallet.Balance, grossDebitAmount);
             }
 
             var isCrossCurrency = !senderWallet.Currency.Equals(receiverWallet.Currency, StringComparison.OrdinalIgnoreCase);
@@ -152,9 +163,20 @@ public class TransferService : ITransferService
                 targetAmount = Math.Round(request.Amount * rate, 2);
             }
 
-            // Execute transfers
-            senderWallet.Withdraw(request.Amount);
+            // Execute balance mutations
+            senderWallet.Withdraw(grossDebitAmount);
             receiverWallet.Deposit(targetAmount);
+
+            Wallet? systemWallet = null;
+            if (feeAmount > 0)
+            {
+                systemWallet = await _dbContext.Wallets.FirstOrDefaultAsync(w => w.Id == SystemConstants.SystemWalletId, cancellationToken);
+                if (systemWallet != null)
+                {
+                    systemWallet.Balance += feeAmount;
+                    systemWallet.UpdatedAtUtc = DateTime.UtcNow;
+                }
+            }
 
             // Create Transaction record
             var transaction = new Transaction
@@ -163,6 +185,7 @@ public class TransferService : ITransferService
                 Type = TransactionType.Transfer,
                 Status = TransactionStatus.Completed,
                 Amount = request.Amount,
+                FeeAmount = feeAmount,
                 Currency = senderWallet.Currency,
                 ExchangeRate = rate,
                 TargetAmount = targetAmount,
@@ -181,18 +204,20 @@ public class TransferService : ITransferService
 
             if (!isCrossCurrency)
             {
-                // Single-Currency Double-Entry Ledger: Debit Sender, Credit Receiver
+                // Single-Currency Double-Entry Ledger:
+                // 1) Debit Sender: gross amount (Principal + Fee)
                 var senderLedger = new LedgerEntry
                 {
                     TransactionId = transaction.Id,
                     WalletId = senderWallet.Id,
                     EntryType = LedgerEntryType.Debit,
-                    Amount = request.Amount,
+                    Amount = grossDebitAmount,
                     Currency = senderWallet.Currency,
                     BalanceAfter = senderWallet.Balance,
                     CreatedAtUtc = DateTime.UtcNow
                 };
 
+                // 2) Credit Receiver: net principal amount
                 var receiverLedger = new LedgerEntry
                 {
                     TransactionId = transaction.Id,
@@ -206,17 +231,33 @@ public class TransferService : ITransferService
 
                 _dbContext.LedgerEntries.Add(senderLedger);
                 _dbContext.LedgerEntries.Add(receiverLedger);
+
+                // 3) Credit System Treasury: collected fee
+                if (feeAmount > 0)
+                {
+                    var systemTreasuryFeeLedger = new LedgerEntry
+                    {
+                        TransactionId = transaction.Id,
+                        WalletId = SystemConstants.SystemWalletId,
+                        EntryType = LedgerEntryType.Credit,
+                        Amount = feeAmount,
+                        Currency = senderWallet.Currency,
+                        BalanceAfter = systemWallet?.Balance ?? feeAmount,
+                        CreatedAtUtc = DateTime.UtcNow
+                    };
+                    _dbContext.LedgerEntries.Add(systemTreasuryFeeLedger);
+                }
             }
             else
             {
                 // Multi-Currency Double-Entry Ledger via System Treasury FX Clearing Account
-                // 1) Source Currency: Debit Sender, Credit System Treasury FX Clearing
+                // 1) Source Currency: Debit Sender gross, Credit FX Clearing principal, Credit Treasury fee
                 var senderDebitLedger = new LedgerEntry
                 {
                     TransactionId = transaction.Id,
                     WalletId = senderWallet.Id,
                     EntryType = LedgerEntryType.Debit,
-                    Amount = request.Amount,
+                    Amount = grossDebitAmount,
                     Currency = senderWallet.Currency,
                     BalanceAfter = senderWallet.Balance,
                     CreatedAtUtc = DateTime.UtcNow
@@ -233,7 +274,25 @@ public class TransferService : ITransferService
                     CreatedAtUtc = DateTime.UtcNow
                 };
 
-                // 2) Destination Currency: Debit System Treasury FX Clearing, Credit Receiver
+                _dbContext.LedgerEntries.Add(senderDebitLedger);
+                _dbContext.LedgerEntries.Add(systemFxCreditLedger);
+
+                if (feeAmount > 0)
+                {
+                    var systemTreasuryFeeLedger = new LedgerEntry
+                    {
+                        TransactionId = transaction.Id,
+                        WalletId = SystemConstants.SystemWalletId,
+                        EntryType = LedgerEntryType.Credit,
+                        Amount = feeAmount,
+                        Currency = senderWallet.Currency,
+                        BalanceAfter = systemWallet?.Balance ?? feeAmount,
+                        CreatedAtUtc = DateTime.UtcNow
+                    };
+                    _dbContext.LedgerEntries.Add(systemTreasuryFeeLedger);
+                }
+
+                // 2) Destination Currency: Debit System FX Clearing, Credit Receiver
                 var systemFxDebitLedger = new LedgerEntry
                 {
                     TransactionId = transaction.Id,
@@ -256,8 +315,6 @@ public class TransferService : ITransferService
                     CreatedAtUtc = DateTime.UtcNow
                 };
 
-                _dbContext.LedgerEntries.Add(senderDebitLedger);
-                _dbContext.LedgerEntries.Add(systemFxCreditLedger);
                 _dbContext.LedgerEntries.Add(systemFxDebitLedger);
                 _dbContext.LedgerEntries.Add(receiverCreditLedger);
             }
@@ -270,6 +327,9 @@ public class TransferService : ITransferService
                 SenderUserId = senderUser.Id,
                 ReceiverUserId = receiverUser.Id,
                 Amount = request.Amount,
+                FeeAmount = feeAmount,
+                GrossAmount = grossDebitAmount,
+                NetAmount = request.Amount,
                 Currency = senderWallet.Currency,
                 ExchangeRate = rate,
                 TargetAmount = targetAmount,
@@ -367,6 +427,9 @@ public class TransferService : ITransferService
         t.TargetCurrency,
         t.OriginalTransactionId,
         t.ReversalTransactionId,
-        t.ReversalReason
+        t.ReversalReason,
+        t.FeeAmount,
+        t.GrossAmount,
+        t.NetAmount
     );
 }

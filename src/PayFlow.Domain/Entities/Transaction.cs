@@ -9,6 +9,9 @@ public class Transaction
     public TransactionType Type { get; set; }
     public TransactionStatus Status { get; set; } = TransactionStatus.Pending;
     public decimal Amount { get; set; }
+    public decimal FeeAmount { get; set; } = 0.00m;
+    public decimal GrossAmount => Amount + FeeAmount;
+    public decimal NetAmount => Amount;
     public string Currency { get; set; } = "EGP";
     public decimal ExchangeRate { get; set; } = 1.0m;
     public decimal? TargetAmount { get; set; }

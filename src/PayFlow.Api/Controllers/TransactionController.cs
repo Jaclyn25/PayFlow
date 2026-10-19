@@ -60,4 +60,15 @@ public class TransactionController : ControllerBase
         var result = await _transactionService.ReverseTransactionAsync(userId, id, request, idempotencyKey, cancellationToken);
         return Ok(result);
     }
+
+    [HttpGet("fee-quote")]
+    [ProducesResponseType(typeof(FeeQuoteResponse), StatusCodes.Status200OK)]
+    public IActionResult GetFeeQuote(
+        [FromQuery] decimal amount,
+        [FromQuery] string currency = "EGP",
+        [FromServices] IFeeService feeService = null!)
+    {
+        var quote = feeService.GetFeeQuote(amount, currency);
+        return Ok(quote);
+    }
 }
