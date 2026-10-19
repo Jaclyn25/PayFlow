@@ -41,6 +41,19 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasSentinel((PayFlow.Domain.Enums.KycTier)(-1))
             .IsRequired();
 
+        builder.Property(u => u.EmailConfirmed)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(u => u.EmailVerificationTokenHash)
+            .HasMaxLength(128);
+
+        builder.Property(u => u.PasswordResetTokenHash)
+            .HasMaxLength(128);
+
+        builder.HasIndex(u => u.EmailVerificationTokenHash);
+        builder.HasIndex(u => u.PasswordResetTokenHash);
+
         builder.Property(u => u.TwoFactorEnabled)
             .HasDefaultValue(false)
             .IsRequired();

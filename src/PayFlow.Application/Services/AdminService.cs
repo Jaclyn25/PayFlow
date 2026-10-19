@@ -162,7 +162,8 @@ public class AdminService : IAdminService
                 u.Wallet != null ? u.Wallet.Id : null,
                 u.Wallet != null ? u.Wallet.Balance : 0m,
                 u.Wallet != null ? u.Wallet.Currency : "EGP",
-                u.Wallet != null && u.Wallet.IsFrozen
+                u.Wallet != null && u.Wallet.IsFrozen,
+                u.EmailConfirmed
             ))
             .ToListAsync(cancellationToken);
 
