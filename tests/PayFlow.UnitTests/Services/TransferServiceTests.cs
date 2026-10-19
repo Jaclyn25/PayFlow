@@ -155,4 +155,43 @@ public class TransferServiceTests
         var senderWallet = await _dbContext.Wallets.FindAsync(_senderUser.Wallet!.Id);
         senderWallet!.Balance.Should().Be(800.00m); // Deducted ONCE (1000 - 200 = 800), NOT twice (600)!
     }
+
+    [Fact]
+    public async Task TransferAsync_WhenKycLimitExceeded_ThrowsKycLimitExceededExceptionBeforeExecution()
+    {
+        // Arrange
+        var kycMock = new Mock<IKycLimitService>();
+        kycMock.Setup(k => k.ValidateTransferLimitsAsync(
+            It.IsAny<User>(), It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new KycLimitExceededException(
+                "Transfer limit exceeded",
+                "SingleTransaction",
+                5000m,
+                6000m,
+                "Upgrade to Tier 2",
+                KycTier.Tier1));
+
+        var transferServiceWithKyc = new TransferService(
+            _dbContext,
+            _cacheServiceMock.Object,
+            _auditLogServiceMock.Object,
+            null,
+            null,
+            kycMock.Object);
+
+        var request = new TransferRequest("bob@payflow.local", 600.00m, "Payment");
+        var idempotencyKey = Guid.NewGuid().ToString();
+
+        // Act
+        var act = () => transferServiceWithKyc.TransferAsync(_senderUser.Id, idempotencyKey, request);
+
+        // Assert
+        var ex = await act.Should().ThrowAsync<KycLimitExceededException>();
+        ex.Which.LimitType.Should().Be("SingleTransaction");
+
+        // Verify balance was untouched
+        var senderWallet = await _dbContext.Wallets.FindAsync(_senderUser.Wallet!.Id);
+        senderWallet!.Balance.Should().Be(1000.00m);
+    }
 }
+

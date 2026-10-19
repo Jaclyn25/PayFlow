@@ -132,4 +132,16 @@ public class WalletController : ControllerBase
         var pdfFileName = $"Statement_{DateTime.UtcNow:yyyyMMdd_HHmmss}.pdf";
         return File(pdfBytes, "application/pdf", pdfFileName);
     }
+
+    [HttpGet("limits")]
+    [ProducesResponseType(typeof(KycTierLimitsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetKycLimits(
+        [FromServices] IKycLimitService kycLimitService,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        var limits = await kycLimitService.GetUserLimitsAsync(userId, cancellationToken);
+        return Ok(limits);
+    }
 }

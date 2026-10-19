@@ -29,6 +29,7 @@ public static class DependencyInjection
         // Security & Auth Options
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<FeeOptions>(configuration.GetSection(FeeOptions.SectionName));
+        services.Configure<KycOptions>(configuration.GetSection(KycOptions.SectionName));
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuditLogService, AuditLogService>();

@@ -34,5 +34,6 @@ public record UserProfileResponse(
     string LastName,
     string Email,
     bool IsActive,
-    DateTime CreatedAtUtc
+    DateTime CreatedAtUtc,
+    string KycTier = "Tier1"
 );

@@ -28,6 +28,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash)
             .IsRequired();
 
+        builder.Property(u => u.KycTier)
+            .HasConversion<int>()
+            .HasDefaultValue(PayFlow.Domain.Enums.KycTier.Tier1)
+            .HasSentinel((PayFlow.Domain.Enums.KycTier)(-1))
+            .IsRequired();
+
         builder.HasOne(u => u.Wallet)
             .WithOne(w => w.User)
             .HasForeignKey<Wallet>(w => w.UserId)

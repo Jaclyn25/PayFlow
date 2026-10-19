@@ -56,6 +56,19 @@ public class ExceptionHandlingMiddleware
                 null
             ),
 
+            KycLimitExceededException kycEx => (
+                HttpStatusCode.UnprocessableEntity,
+                "KYC Limit Exceeded",
+                kycEx.Message,
+                new Dictionary<string, string[]>
+                {
+                    ["kyc"] = new[] { kycEx.RequiredAction },
+                    ["limitType"] = new[] { kycEx.LimitType },
+                    ["limitAmount"] = new[] { kycEx.LimitAmount.ToString("F2") },
+                    ["currentUsage"] = new[] { kycEx.CurrentUsage.ToString("F2") }
+                }
+            ),
+
             InvalidTransactionException invEx => (
                 HttpStatusCode.BadRequest,
                 "Invalid Transaction Request",

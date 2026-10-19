@@ -16,19 +16,22 @@ public class TransferService : ITransferService
     private readonly IAuditLogService? _auditLogService;
     private readonly IExchangeRateService? _exchangeRateService;
     private readonly IFeeService? _feeService;
+    private readonly IKycLimitService? _kycLimitService;
 
     public TransferService(
         IPayFlowDbContext dbContext,
         ICacheService cacheService,
         IAuditLogService? auditLogService = null,
         IExchangeRateService? exchangeRateService = null,
-        IFeeService? feeService = null)
+        IFeeService? feeService = null,
+        IKycLimitService? kycLimitService = null)
     {
         _dbContext = dbContext;
         _cacheService = cacheService;
         _auditLogService = auditLogService;
         _exchangeRateService = exchangeRateService;
         _feeService = feeService;
+        _kycLimitService = kycLimitService;
     }
 
     public async Task<TransactionResponse> TransferAsync(
@@ -96,6 +99,17 @@ public class TransferService : ITransferService
         var (firstWalletId, secondWalletId) = senderWalletId.CompareTo(receiverWalletId) < 0
             ? (senderWalletId, receiverWalletId)
             : (receiverWalletId, senderWalletId);
+
+        // 3. KYC Tier & Transaction Limits Validation (evaluated before acquiring locks)
+        if (_kycLimitService != null)
+        {
+            await _kycLimitService.ValidateTransferLimitsAsync(
+                senderUser,
+                senderWalletId,
+                request.Amount,
+                senderUser.Wallet.Currency,
+                cancellationToken);
+        }
 
         await using var dbTransaction = await _dbContext.BeginTransactionAsync(cancellationToken);
         try

@@ -295,7 +295,8 @@ public class AuthService : IAuthService
             user.LastName,
             user.Email,
             user.IsActive,
-            user.CreatedAtUtc
+            user.CreatedAtUtc,
+            user.KycTier.ToString()
         );
     }
 }
