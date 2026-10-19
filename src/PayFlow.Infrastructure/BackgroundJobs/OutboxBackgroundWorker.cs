@@ -65,6 +65,8 @@ public class OutboxBackgroundWorker : BackgroundService
                 var routingKey = message.Type switch
                 {
                     "TransferCompleted" => "transfer.completed",
+                    "UserRegisteredEvent" => "auth.user.registered",
+                    "PasswordResetRequestedEvent" => "auth.password.reset.requested",
                     _ => "domain.event"
                 };
 

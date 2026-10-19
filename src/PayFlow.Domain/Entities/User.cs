@@ -19,6 +19,12 @@ public class User
     public Wallet? Wallet { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
+    public bool EmailConfirmed { get; set; } = false;
+    public string? EmailVerificationTokenHash { get; set; }
+    public DateTime? EmailVerificationTokenExpiresAtUtc { get; set; }
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetTokenExpiresAtUtc { get; set; }
+
     public bool TwoFactorEnabled { get; set; } = false;
     public string? TwoFactorSecret { get; set; }
     public DateTime? TwoFactorEnabledAtUtc { get; set; }

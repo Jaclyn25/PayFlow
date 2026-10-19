@@ -34,7 +34,8 @@ public record AdminUserDto(
     Guid? WalletId,
     decimal WalletBalance,
     string WalletCurrency,
-    bool IsWalletFrozen
+    bool IsWalletFrozen,
+    bool EmailConfirmed = false
 );
 
 public record AdminUserFilterParams(

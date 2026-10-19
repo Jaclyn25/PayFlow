@@ -188,6 +188,68 @@ public class AuthController : ControllerBase
         var authResponse = await twoFactorService.VerifyTwoFactorLoginAsync(request, cancellationToken);
         return Ok(authResponse);
     }
+
+    [AllowAnonymous]
+    [HttpGet("verify-email")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> VerifyEmail(
+        [FromQuery] string token,
+        CancellationToken cancellationToken)
+    {
+        var result = await _authService.VerifyEmailAsync(token, cancellationToken);
+        return Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("verify-email")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> VerifyEmailPost(
+        [FromBody] VerifyEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _authService.VerifyEmailAsync(request.Token, cancellationToken);
+        return Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        [FromServices] IValidator<ForgotPasswordRequest> validator,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await validator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            throw new ValidationException(validationResult.Errors);
+        }
+
+        var result = await _authService.ForgotPasswordAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request,
+        [FromServices] IValidator<ResetPasswordRequest> validator,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await validator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            throw new ValidationException(validationResult.Errors);
+        }
+
+        var result = await _authService.ResetPasswordAsync(request, cancellationToken);
+        return Ok(result);
+    }
 }
 
 
