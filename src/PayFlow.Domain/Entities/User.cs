@@ -17,4 +17,10 @@ public class User
 
     public Wallet? Wallet { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
+    public bool TwoFactorEnabled { get; set; } = false;
+    public string? TwoFactorSecret { get; set; }
+    public DateTime? TwoFactorEnabledAtUtc { get; set; }
+    public ICollection<TwoFactorRecoveryCode> TwoFactorRecoveryCodes { get; set; } = new List<TwoFactorRecoveryCode>();
 }
+

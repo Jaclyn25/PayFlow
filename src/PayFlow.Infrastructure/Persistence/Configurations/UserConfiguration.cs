@@ -34,6 +34,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasSentinel((PayFlow.Domain.Enums.KycTier)(-1))
             .IsRequired();
 
+        builder.Property(u => u.TwoFactorEnabled)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(u => u.TwoFactorSecret)
+            .HasMaxLength(128);
+
         builder.HasOne(u => u.Wallet)
             .WithOne(w => w.User)
             .HasForeignKey<Wallet>(w => w.UserId)
@@ -43,5 +50,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .WithOne(r => r.User)
             .HasForeignKey(r => r.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(u => u.TwoFactorRecoveryCodes)
+            .WithOne(r => r.User)
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
+

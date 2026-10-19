@@ -17,6 +17,7 @@ public class TransferService : ITransferService
     private readonly IExchangeRateService? _exchangeRateService;
     private readonly IFeeService? _feeService;
     private readonly IKycLimitService? _kycLimitService;
+    private readonly ITwoFactorAuthService? _twoFactorAuthService;
 
     public TransferService(
         IPayFlowDbContext dbContext,
@@ -24,7 +25,8 @@ public class TransferService : ITransferService
         IAuditLogService? auditLogService = null,
         IExchangeRateService? exchangeRateService = null,
         IFeeService? feeService = null,
-        IKycLimitService? kycLimitService = null)
+        IKycLimitService? kycLimitService = null,
+        ITwoFactorAuthService? twoFactorAuthService = null)
     {
         _dbContext = dbContext;
         _cacheService = cacheService;
@@ -32,6 +34,7 @@ public class TransferService : ITransferService
         _exchangeRateService = exchangeRateService;
         _feeService = feeService;
         _kycLimitService = kycLimitService;
+        _twoFactorAuthService = twoFactorAuthService;
     }
 
     public async Task<TransactionResponse> TransferAsync(
@@ -108,6 +111,16 @@ public class TransferService : ITransferService
                 senderWalletId,
                 request.Amount,
                 senderUser.Wallet.Currency,
+                cancellationToken);
+        }
+
+        // 4. Step-Up Two-Factor Authentication Validation (evaluated before acquiring locks)
+        if (_twoFactorAuthService != null)
+        {
+            await _twoFactorAuthService.ValidateStepUpTransferAsync(
+                senderUser,
+                request.Amount,
+                request.TwoFactorCode,
                 cancellationToken);
         }
 

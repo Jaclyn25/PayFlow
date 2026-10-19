@@ -193,5 +193,40 @@ public class TransferServiceTests
         var senderWallet = await _dbContext.Wallets.FindAsync(_senderUser.Wallet!.Id);
         senderWallet!.Balance.Should().Be(1000.00m);
     }
+
+    [Fact]
+    public async Task TransferAsync_WhenTwoFactorRequiredForHighValue_ThrowsTwoFactorRequiredException()
+    {
+        // Arrange
+        var twoFactorMock = new Mock<ITwoFactorAuthService>();
+        twoFactorMock.Setup(t => t.ValidateStepUpTransferAsync(
+            It.IsAny<User>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TwoFactorRequiredException(5000m, 10000m));
+
+        var transferServiceWith2Fa = new TransferService(
+            _dbContext,
+            _cacheServiceMock.Object,
+            _auditLogServiceMock.Object,
+            null,
+            null,
+            null,
+            twoFactorMock.Object);
+
+        var request = new TransferRequest("bob@payflow.local", 10000.00m, "Large transfer");
+        var idempotencyKey = Guid.NewGuid().ToString();
+
+        // Act
+        var act = () => transferServiceWith2Fa.TransferAsync(_senderUser.Id, idempotencyKey, request);
+
+        // Assert
+        var ex = await act.Should().ThrowAsync<TwoFactorRequiredException>();
+        ex.Which.ThresholdAmount.Should().Be(5000m);
+        ex.Which.AttemptedAmount.Should().Be(10000m);
+
+        // Balance untouched
+        var senderWallet = await _dbContext.Wallets.FindAsync(_senderUser.Wallet!.Id);
+        senderWallet!.Balance.Should().Be(1000.00m);
+    }
 }
+
 
