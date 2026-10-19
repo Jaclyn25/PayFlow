@@ -9,15 +9,21 @@ namespace PayFlow.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/wallets")]
 public class WalletController : ControllerBase
 {
     private readonly IWalletService _walletService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IStatementService _statementService;
 
-    public WalletController(IWalletService walletService, ICurrentUserService currentUserService)
+    public WalletController(
+        IWalletService walletService,
+        ICurrentUserService currentUserService,
+        IStatementService statementService)
     {
         _walletService = walletService;
         _currentUserService = currentUserService;
+        _statementService = statementService;
     }
 
     [HttpGet]
@@ -69,5 +75,61 @@ public class WalletController : ControllerBase
         var userId = _currentUserService.UserId!.Value;
         var result = await _walletService.WithdrawAsync(userId, request, cancellationToken);
         return Ok(result);
+    }
+
+    [HttpGet("statement")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(StatementSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCurrentUserStatement(
+        [FromQuery] StatementQueryParameters parameters,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        return await HandleStatementFormatAsync(userId, null, parameters, cancellationToken);
+    }
+
+    [HttpGet("{id:guid}/statement")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(StatementSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetWalletStatement(
+        [FromRoute] Guid id,
+        [FromQuery] StatementQueryParameters parameters,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId!.Value;
+        return await HandleStatementFormatAsync(userId, id, parameters, cancellationToken);
+    }
+
+    private async Task<IActionResult> HandleStatementFormatAsync(
+        Guid userId,
+        Guid? walletId,
+        StatementQueryParameters parameters,
+        CancellationToken cancellationToken)
+    {
+        var format = parameters.Format?.Trim().ToLowerInvariant() ?? "pdf";
+        var fromDate = parameters.From;
+        var toDate = parameters.To;
+
+        if (format == "csv")
+        {
+            var csvBytes = await _statementService.GenerateCsvStatementAsync(userId, walletId, fromDate, toDate, cancellationToken);
+            var fileName = $"Statement_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+            return File(csvBytes, "text/csv", fileName);
+        }
+
+        if (format == "json")
+        {
+            var data = await _statementService.GetStatementDataAsync(userId, walletId, fromDate, toDate, cancellationToken);
+            return Ok(data);
+        }
+
+        var pdfBytes = await _statementService.GeneratePdfStatementAsync(userId, walletId, fromDate, toDate, cancellationToken);
+        var pdfFileName = $"Statement_{DateTime.UtcNow:yyyyMMdd_HHmmss}.pdf";
+        return File(pdfBytes, "application/pdf", pdfFileName);
     }
 }

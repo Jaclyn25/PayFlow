@@ -7,6 +7,7 @@ using PayFlow.Infrastructure.BackgroundJobs;
 using PayFlow.Infrastructure.Caching;
 using PayFlow.Infrastructure.Messaging;
 using PayFlow.Infrastructure.Persistence;
+using PayFlow.Infrastructure.Reporting;
 using PayFlow.Infrastructure.Security;
 using PayFlow.Infrastructure.Services;
 
@@ -32,6 +33,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddSingleton<IExchangeRateService, ExchangeRateService>();
+        services.AddSingleton<IStatementReportGenerator, StatementReportGenerator>();
 
         // Redis Caching
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
