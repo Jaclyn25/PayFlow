@@ -3,11 +3,13 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using PayFlow.Api.Hubs;
 using PayFlow.Api.Middleware;
 using PayFlow.Api.Services;
 using PayFlow.Api.Swagger;
@@ -60,6 +62,20 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtOptions.Audience,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/wallet"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -125,7 +141,20 @@ builder.Services.AddHealthChecks()
     .AddNpgSql(dbConnection, name: "postgresql", tags: new[] { "db", "ready" })
     .AddRedis(redisConnection, name: "redis", tags: new[] { "cache", "ready" });
 
-// 7. Controllers & Swagger Configuration
+// 7. SignalR & Real-Time Notifications Configuration
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+    options.MaximumParallelInvocationsPerClient = 5;
+    options.StatefulReconnectBufferSize = 100_000;
+});
+builder.Services.AddSingleton<IUserIdProvider, CustomUserIdProvider>();
+builder.Services.AddScoped<IRealTimeNotificationService, SignalRNotificationService>();
+
+// 8. Controllers & Swagger Configuration
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -158,7 +187,7 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<IdempotencyHeaderOperationFilter>();
 });
 
-// 8. CORS Configuration
+// 9. CORS Configuration
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? new[] { "http://localhost:5173", "http://localhost:3000" };
 
@@ -175,10 +204,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 9. Development Database Seeding
+// 10. Development Database Seeding
 await DbInitializer.SeedDevelopmentDataAsync(app.Services, app.Environment);
 
-// 10. Middleware Pipeline
+// 11. Middleware Pipeline
 app.UseSerilogRequestLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
@@ -197,6 +226,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<WalletHub>("/hubs/wallet");
 
 // Health Check Endpoints
 app.MapHealthChecks("/health");
