@@ -89,7 +89,7 @@ public class RabbitMqDlqIntegrationTests : IClassFixture<RabbitMqTestContainerFi
         await channel.BasicNackAsync(dlqResult.DeliveryTag, multiple: false, requeue: true);
 
         var inspected = await dlqService.GetDeadLetterMessagesAsync(5);
-        inspected.Should().Not.BeEmpty();
+        inspected.Should().NotBeEmpty();
         inspected[0].Payload.Should().Be(payload);
 
         // Redeliver
