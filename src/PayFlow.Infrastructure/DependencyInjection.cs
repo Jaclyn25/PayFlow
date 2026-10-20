@@ -50,6 +50,8 @@ public static class DependencyInjection
         // RabbitMQ & Messaging
         services.Configure<RabbitMQOptions>(configuration.GetSection(RabbitMQOptions.SectionName));
         services.AddSingleton<IRabbitMQPublisher, RabbitMQPublisher>();
+        services.AddScoped<INotificationMessageProcessor, NotificationMessageProcessor>();
+        services.AddScoped<IDeadLetterQueueService, DeadLetterQueueService>();
 
         // Background Workers
         services.AddHostedService<OutboxBackgroundWorker>();

@@ -150,4 +150,45 @@ public class AdminController : ControllerBase
         var result = await _adminService.UpdateUserRoleAsync(userId, request.Role, cancellationToken);
         return Ok(result);
     }
+
+    [Authorize(Policy = RoleConstants.RequireAdminRole)]
+    [HttpGet("dlq/messages")]
+    [ProducesResponseType(typeof(IReadOnlyList<DeadLetterMessageDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetDeadLetterMessages(
+        [FromQuery] int count,
+        [FromServices] IDeadLetterQueueService dlqService,
+        CancellationToken cancellationToken)
+    {
+        var messages = await dlqService.GetDeadLetterMessagesAsync(count <= 0 ? 20 : count, cancellationToken);
+        return Ok(messages);
+    }
+
+    [Authorize(Policy = RoleConstants.RequireAdminRole)]
+    [HttpPost("dlq/redeliver")]
+    [ProducesResponseType(typeof(DlqRedeliveryResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RedeliverDeadLetterMessages(
+        [FromQuery] int count,
+        [FromServices] IDeadLetterQueueService dlqService,
+        CancellationToken cancellationToken)
+    {
+        var result = await dlqService.RedeliverDeadLetterMessagesAsync(count <= 0 ? 10 : count, cancellationToken);
+        return Ok(result);
+    }
+
+    [Authorize(Policy = RoleConstants.RequireAdminRole)]
+    [HttpDelete("dlq/purge")]
+    [ProducesResponseType(typeof(DlqPurgeResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> PurgeDeadLetterQueue(
+        [FromServices] IDeadLetterQueueService dlqService,
+        CancellationToken cancellationToken)
+    {
+        var purgedCount = await dlqService.PurgeDeadLetterQueueAsync(cancellationToken);
+        return Ok(new DlqPurgeResult(purgedCount, $"Successfully purged {purgedCount} message(s) from Dead Letter Queue."));
+    }
 }
