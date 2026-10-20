@@ -1,13 +1,12 @@
 using System.Text;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PayFlow.Application.Common.Interfaces;
-using PayFlow.Domain.Entities;
 using PayFlow.Infrastructure.Messaging;
+using Polly;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -18,6 +17,7 @@ public class NotificationConsumer : BackgroundService
     private readonly RabbitMQOptions _options;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<NotificationConsumer> _logger;
+    private readonly ResiliencePipeline _retryPipeline;
 
     public NotificationConsumer(
         IOptions<RabbitMQOptions> options,
@@ -27,6 +27,10 @@ public class NotificationConsumer : BackgroundService
         _options = options.Value;
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _retryPipeline = ResiliencePolicies.CreateRabbitMqRetryPipeline(
+            maxRetries: _options.MaxRetryAttempts,
+            initialDelaySeconds: _options.InitialRetryDelaySeconds,
+            logger: _logger);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -48,6 +52,34 @@ public class NotificationConsumer : BackgroundService
                 using var connection = await factory.CreateConnectionAsync(stoppingToken);
                 using var channel = await connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
+                // 1. Declare Dead Letter Exchange (DLX) & Queue (DLQ)
+                await channel.ExchangeDeclareAsync(
+                    exchange: _options.DeadLetterExchangeName,
+                    type: ExchangeType.Direct,
+                    durable: true,
+                    autoDelete: false,
+                    cancellationToken: stoppingToken);
+
+                await channel.QueueDeclareAsync(
+                    queue: _options.DeadLetterQueueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    cancellationToken: stoppingToken);
+
+                await channel.QueueBindAsync(
+                    queue: _options.DeadLetterQueueName,
+                    exchange: _options.DeadLetterExchangeName,
+                    routingKey: _options.DeadLetterRoutingKey,
+                    cancellationToken: stoppingToken);
+
+                await channel.QueueBindAsync(
+                    queue: _options.DeadLetterQueueName,
+                    exchange: _options.DeadLetterExchangeName,
+                    routingKey: _options.RoutingKey,
+                    cancellationToken: stoppingToken);
+
+                // 2. Declare Primary Exchange
                 await channel.ExchangeDeclareAsync(
                     exchange: _options.ExchangeName,
                     type: ExchangeType.Direct,
@@ -55,11 +87,19 @@ public class NotificationConsumer : BackgroundService
                     autoDelete: false,
                     cancellationToken: stoppingToken);
 
+                // 3. Declare Primary Queue with DLX configuration
+                var queueArguments = new Dictionary<string, object?>
+                {
+                    { "x-dead-letter-exchange", _options.DeadLetterExchangeName },
+                    { "x-dead-letter-routing-key", _options.DeadLetterRoutingKey }
+                };
+
                 await channel.QueueDeclareAsync(
                     queue: _options.QueueName,
                     durable: true,
                     exclusive: false,
                     autoDelete: false,
+                    arguments: queueArguments,
                     cancellationToken: stoppingToken);
 
                 await channel.QueueBindAsync(
@@ -76,53 +116,30 @@ public class NotificationConsumer : BackgroundService
 
                     try
                     {
-                        using var doc = JsonDocument.Parse(message);
-                        var root = doc.RootElement;
-
-                        var transactionId = root.TryGetProperty("TransactionId", out var idProp) ? idProp.GetString() : "UNKNOWN";
-                        var reference = root.TryGetProperty("Reference", out var refProp) ? refProp.GetString() : "N/A";
-                        var amount = root.TryGetProperty("Amount", out var amtProp) ? amtProp.GetDecimal() : 0m;
-                        var currency = root.TryGetProperty("Currency", out var curProp) ? curProp.GetString() : "EGP";
-
-                        using var scope = _scopeFactory.CreateScope();
-                        var dbContext = scope.ServiceProvider.GetRequiredService<IPayFlowDbContext>();
-
-                        // Durable Inbox Pattern Idempotency Check
-                        var alreadyProcessed = await dbContext.InboxMessages
-                            .AnyAsync(i => i.MessageId == transactionId, stoppingToken);
-
-                        if (alreadyProcessed)
+                        // Execute message processing under Polly exponential backoff + jitter retry policy
+                        await _retryPipeline.ExecuteAsync(async ct =>
                         {
-                            _logger.LogInformation("[NOTIFICATION CONSUMER] Duplicate event skipped for Transaction '{TransactionId}'.", transactionId);
-                            await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
-                            return;
-                        }
-
-                        var inboxRecord = new InboxMessage
-                        {
-                            MessageId = transactionId!,
-                            EventType = "TransferCompleted",
-                            ProcessedAtUtc = DateTime.UtcNow
-                        };
-
-                        dbContext.InboxMessages.Add(inboxRecord);
-                        await dbContext.SaveChangesAsync(stoppingToken);
-
-                        _logger.LogInformation("[NOTIFICATION CONSUMER] Transfer notification sent for transaction '{Reference}' (ID: {TransactionId}). Amount: {Amount:F2} {Currency}.",
-                            reference, transactionId, amount, currency);
+                            using var scope = _scopeFactory.CreateScope();
+                            var processor = scope.ServiceProvider.GetRequiredService<INotificationMessageProcessor>();
+                            await processor.ProcessAsync(message, ct);
+                        }, stoppingToken);
 
                         await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                     }
                     catch (DbUpdateException)
                     {
-                        // Concurrent delivery race condition handled by unique index constraint
+                        // Concurrent duplicate delivery race condition handled by unique index constraint on Inbox
                         _logger.LogInformation("[NOTIFICATION CONSUMER] Race condition caught: event already processed for message.");
                         await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "[NOTIFICATION CONSUMER] Error processing received notification message.");
-                        await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true);
+                        _logger.LogError(ex,
+                            "[NOTIFICATION CONSUMER] Exhausted all {MaxRetries} retries for message. Rejecting without requeue to DLX '{Dlx}'.",
+                            _options.MaxRetryAttempts, _options.DeadLetterExchangeName);
+
+                        // basic.nack with requeue: false causes RabbitMQ to route the message to x-dead-letter-exchange
+                        await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false);
                     }
                 };
 
@@ -132,7 +149,8 @@ public class NotificationConsumer : BackgroundService
                     consumer: consumer,
                     cancellationToken: stoppingToken);
 
-                _logger.LogInformation("Notification Consumer listening on queue '{Queue}'.", _options.QueueName);
+                _logger.LogInformation("Notification Consumer listening on queue '{Queue}' with DLQ '{Dlq}'.",
+                    _options.QueueName, _options.DeadLetterQueueName);
 
                 await Task.Delay(Timeout.Infinite, stoppingToken);
             }
