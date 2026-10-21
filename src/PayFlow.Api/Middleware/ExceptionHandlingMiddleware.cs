@@ -116,6 +116,20 @@ public class ExceptionHandlingMiddleware
                 null
             ),
 
+            WebhookSubscriptionNotFoundException wsnfEx => (
+                HttpStatusCode.NotFound,
+                "Webhook Subscription Not Found",
+                wsnfEx.Message,
+                null
+            ),
+
+            WebhookDeliveryNotFoundException wdnfEx => (
+                HttpStatusCode.NotFound,
+                "Webhook Delivery Not Found",
+                wdnfEx.Message,
+                null
+            ),
+
             DbUpdateConcurrencyException => (
                 HttpStatusCode.Conflict,
                 "Concurrency Conflict",
@@ -154,3 +168,4 @@ public class ExceptionHandlingMiddleware
         await context.Response.WriteAsync(json);
     }
 }
+

@@ -58,3 +58,24 @@ public class UnauthorizedDomainException : DomainException
 {
     public UnauthorizedDomainException(string message) : base(message) { }
 }
+
+public class WebhookSubscriptionNotFoundException : DomainException
+{
+    public WebhookSubscriptionNotFoundException(Guid subscriptionId)
+        : base($"Webhook subscription with ID '{subscriptionId}' was not found.")
+    {
+    }
+
+    public WebhookSubscriptionNotFoundException(string identifier)
+        : base($"Webhook subscription '{identifier}' was not found.")
+    {
+    }
+}
+
+public class WebhookDeliveryNotFoundException : DomainException
+{
+    public WebhookDeliveryNotFoundException(Guid deliveryId)
+        : base($"Webhook delivery log with ID '{deliveryId}' was not found.")
+    {
+    }
+}

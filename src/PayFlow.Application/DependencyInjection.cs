@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IStatementService, StatementService>();
         services.AddScoped<IKycLimitService, KycLimitService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IWebhookSubscriptionService, WebhookSubscriptionService>();
 
         return services;
     }

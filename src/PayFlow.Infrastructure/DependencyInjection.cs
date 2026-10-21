@@ -38,6 +38,14 @@ public static class DependencyInjection
         services.AddSingleton<IStatementReportGenerator, StatementReportGenerator>();
         services.AddScoped<ITwoFactorAuthService, TwoFactorAuthService>();
 
+        // Webhook Signing & Dispatching
+        services.AddHttpClient("Webhooks", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddSingleton<IWebhookSigner, WebhookSigner>();
+        services.AddScoped<IWebhookDispatcherService, WebhookDispatcherService>();
+
         // Redis Caching
         var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
         services.AddStackExchangeRedisCache(options =>
@@ -56,6 +64,7 @@ public static class DependencyInjection
         // Background Workers
         services.AddHostedService<OutboxBackgroundWorker>();
         services.AddHostedService<NotificationConsumer>();
+        services.AddHostedService<WebhookDispatcherWorker>();
 
         return services;
     }

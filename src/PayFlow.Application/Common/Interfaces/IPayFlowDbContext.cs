@@ -16,7 +16,8 @@ public interface IPayFlowDbContext
     DbSet<InboxMessage> InboxMessages { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<TwoFactorRecoveryCode> TwoFactorRecoveryCodes { get; }
-
+    DbSet<WebhookSubscription> WebhookSubscriptions { get; }
+    DbSet<WebhookDeliveryLog> WebhookDeliveryLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
