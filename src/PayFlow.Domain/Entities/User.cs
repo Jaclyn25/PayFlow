@@ -29,5 +29,6 @@ public class User
     public string? TwoFactorSecret { get; set; }
     public DateTime? TwoFactorEnabledAtUtc { get; set; }
     public ICollection<TwoFactorRecoveryCode> TwoFactorRecoveryCodes { get; set; } = new List<TwoFactorRecoveryCode>();
-}
 
+    public ICollection<WebhookSubscription> WebhookSubscriptions { get; set; } = new List<WebhookSubscription>();
+}

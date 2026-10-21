@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PayFlow.Application.Common.Interfaces;
 using PayFlow.Application.DTOs;
+using PayFlow.Domain.Constants;
 using PayFlow.Domain.Entities;
 
 namespace PayFlow.Infrastructure.Messaging;
@@ -11,16 +12,19 @@ public class NotificationMessageProcessor : INotificationMessageProcessor
 {
     private readonly IPayFlowDbContext _dbContext;
     private readonly IRealTimeNotificationService? _notificationService;
+    private readonly IWebhookDispatcherService? _webhookDispatcher;
     private readonly ILogger<NotificationMessageProcessor> _logger;
 
     public NotificationMessageProcessor(
         IPayFlowDbContext dbContext,
         ILogger<NotificationMessageProcessor> logger,
-        IRealTimeNotificationService? notificationService = null)
+        IRealTimeNotificationService? notificationService = null,
+        IWebhookDispatcherService? webhookDispatcher = null)
     {
         _dbContext = dbContext;
         _logger = logger;
         _notificationService = notificationService;
+        _webhookDispatcher = webhookDispatcher;
     }
 
     public async Task ProcessAsync(string messagePayload, CancellationToken cancellationToken = default)
@@ -152,6 +156,50 @@ public class NotificationMessageProcessor : INotificationMessageProcessor
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[NOTIFICATION PROCESSOR] Failed to dispatch real-time push notification for transaction '{TransactionId}'.", transactionIdStr);
+            }
+        }
+
+        // 3. Outgoing Webhooks Dispatch
+        if (_webhookDispatcher != null)
+        {
+            try
+            {
+                var webhookData = new
+                {
+                    TransactionId = transactionIdStr,
+                    Reference = reference,
+                    SenderUserId = senderUserId != Guid.Empty ? senderUserId.ToString() : null,
+                    ReceiverUserId = receiverUserId != Guid.Empty ? receiverUserId.ToString() : null,
+                    Amount = amount,
+                    FeeAmount = feeAmount,
+                    Currency = currency,
+                    TargetAmount = targetAmount,
+                    TargetCurrency = targetCurrency,
+                    Status = "Completed",
+                    OccurredAt = occurredAt
+                };
+
+                if (senderUserId != Guid.Empty)
+                {
+                    await _webhookDispatcher.DispatchEventAsync(
+                        WebhookEventConstants.TransferCompleted,
+                        webhookData,
+                        senderUserId,
+                        cancellationToken);
+                }
+
+                if (receiverUserId != Guid.Empty && receiverUserId != senderUserId)
+                {
+                    await _webhookDispatcher.DispatchEventAsync(
+                        WebhookEventConstants.TransferCompleted,
+                        webhookData,
+                        receiverUserId,
+                        cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[NOTIFICATION PROCESSOR] Failed to dispatch outgoing webhook for transaction '{TransactionId}'.", transactionIdStr);
             }
         }
     }

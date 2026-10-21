@@ -21,7 +21,8 @@ public class PayFlowDbContext : DbContext, IPayFlowDbContext
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<TwoFactorRecoveryCode> TwoFactorRecoveryCodes => Set<TwoFactorRecoveryCode>();
-
+    public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
+    public DbSet<WebhookDeliveryLog> WebhookDeliveryLogs => Set<WebhookDeliveryLog>();
 
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
