@@ -14,6 +14,7 @@ using PayFlow.Api.Middleware;
 using PayFlow.Api.Services;
 using PayFlow.Api.Swagger;
 using PayFlow.Application;
+using PayFlow.Application.Common;
 using PayFlow.Application.Common.Interfaces;
 using PayFlow.Infrastructure;
 using PayFlow.Infrastructure.Persistence;
@@ -115,21 +116,32 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // 5. OpenTelemetry Setup
+var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"]
+    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+    ?? "http://localhost:4317";
+
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracerProviderBuilder =>
     {
         tracerProviderBuilder
             .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("PayFlow.Api"))
+            .AddSource(PayFlowActivitySource.ActivitySourceName)
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddEntityFrameworkCoreInstrumentation();
+            .AddEntityFrameworkCoreInstrumentation()
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri(otlpEndpoint);
+            });
     })
     .WithMetrics(metricsProviderBuilder =>
     {
         metricsProviderBuilder
             .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("PayFlow.Api"))
+            .AddMeter(PayFlowActivitySource.MeterName)
             .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation();
+            .AddHttpClientInstrumentation()
+            .AddPrometheusExporter();
     });
 
 // 6. Health Checks Configuration
@@ -227,6 +239,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<WalletHub>("/hubs/wallet");
+app.MapPrometheusScrapingEndpoint();
 
 // Health Check Endpoints
 app.MapHealthChecks("/health");
