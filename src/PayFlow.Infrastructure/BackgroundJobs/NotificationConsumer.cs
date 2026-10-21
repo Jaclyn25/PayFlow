@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PayFlow.Application.Common.Interfaces;
 using PayFlow.Infrastructure.Messaging;
+using PayFlow.Infrastructure.Observability;
 using Polly;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -14,19 +16,21 @@ namespace PayFlow.Infrastructure.BackgroundJobs;
 
 public class NotificationConsumer : BackgroundService
 {
-    private readonly RabbitMQOptions _options;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<NotificationConsumer> _logger;
+    private readonly RabbitMQOptions _options;
     private readonly ResiliencePipeline _retryPipeline;
+    private readonly ILogger<NotificationConsumer> _logger;
 
     public NotificationConsumer(
-        IOptions<RabbitMQOptions> options,
         IServiceScopeFactory scopeFactory,
+        IOptions<RabbitMQOptions> options,
         ILogger<NotificationConsumer> logger)
     {
-        _options = options.Value;
         _scopeFactory = scopeFactory;
+        _options = options.Value;
         _logger = logger;
+
+        // Build Polly resilience pipeline: Exponential backoff + randomized jitter retries
         _retryPipeline = ResiliencePolicies.CreateRabbitMqRetryPipeline(
             maxRetries: _options.MaxRetryAttempts,
             initialDelaySeconds: _options.InitialRetryDelaySeconds,
@@ -35,7 +39,7 @@ public class NotificationConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Notification Consumer background worker starting...");
+        _logger.LogInformation("Notification Consumer background service starting...");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -111,6 +115,30 @@ public class NotificationConsumer : BackgroundService
                 var consumer = new AsyncEventingBasicConsumer(channel);
                 consumer.ReceivedAsync += async (model, ea) =>
                 {
+                    ActivityContext parentContext = default;
+                    if (ea.BasicProperties?.Headers != null && ea.BasicProperties.Headers.TryGetValue("traceparent", out var tpObj))
+                    {
+                        var tpStr = tpObj switch
+                        {
+                            byte[] b => Encoding.UTF8.GetString(b),
+                            string s => s,
+                            _ => null
+                        };
+
+                        if (!string.IsNullOrEmpty(tpStr))
+                        {
+                            ActivityContext.TryParse(tpStr, null, out parentContext);
+                        }
+                    }
+
+                    using var consumeActivity = PayFlowDiagnostics.ActivitySource.StartActivity(
+                        "RabbitMQ.Consume",
+                        ActivityKind.Consumer,
+                        parentContext);
+
+                    consumeActivity?.SetTag("messaging.system", "rabbitmq");
+                    consumeActivity?.SetTag("messaging.destination", _options.QueueName);
+
                     var body = ea.Body.ToArray();
                     var message = Encoding.UTF8.GetString(body);
 

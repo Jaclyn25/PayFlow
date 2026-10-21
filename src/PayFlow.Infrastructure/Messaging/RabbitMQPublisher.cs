@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PayFlow.Infrastructure.Observability;
 using RabbitMQ.Client;
 
 namespace PayFlow.Infrastructure.Messaging;
@@ -18,6 +20,11 @@ public class RabbitMQPublisher : IRabbitMQPublisher
 
     public async Task PublishEventAsync(string routingKey, string messagePayload, CancellationToken cancellationToken = default)
     {
+        using var activity = PayFlowDiagnostics.ActivitySource.StartActivity("RabbitMQ.Publish", ActivityKind.Producer);
+        activity?.SetTag("messaging.system", "rabbitmq");
+        activity?.SetTag("messaging.destination", _options.ExchangeName);
+        activity?.SetTag("messaging.routing_key", routingKey);
+
         var factory = new ConnectionFactory
         {
             HostName = _options.HostName,
@@ -41,8 +48,18 @@ public class RabbitMQPublisher : IRabbitMQPublisher
         var properties = new BasicProperties
         {
             Persistent = true,
-            ContentType = "application/json"
+            ContentType = "application/json",
+            Headers = new Dictionary<string, object?>()
         };
+
+        if (activity != null && !string.IsNullOrEmpty(activity.Id))
+        {
+            properties.Headers["traceparent"] = Encoding.UTF8.GetBytes(activity.Id);
+            if (!string.IsNullOrEmpty(activity.TraceStateString))
+            {
+                properties.Headers["tracestate"] = Encoding.UTF8.GetBytes(activity.TraceStateString);
+            }
+        }
 
         await channel.BasicPublishAsync(
             exchange: _options.ExchangeName,

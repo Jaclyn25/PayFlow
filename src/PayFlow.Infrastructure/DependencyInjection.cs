@@ -6,6 +6,7 @@ using PayFlow.Application.Common.Options;
 using PayFlow.Infrastructure.BackgroundJobs;
 using PayFlow.Infrastructure.Caching;
 using PayFlow.Infrastructure.Messaging;
+using PayFlow.Infrastructure.Observability;
 using PayFlow.Infrastructure.Persistence;
 using PayFlow.Infrastructure.Reporting;
 using PayFlow.Infrastructure.Security;
@@ -25,6 +26,9 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(PayFlowDbContext).Assembly.FullName)));
 
         services.AddScoped<IPayFlowDbContext>(provider => provider.GetRequiredService<PayFlowDbContext>());
+
+        // Observability Metrics
+        services.AddSingleton<IPayFlowMetrics, PayFlowMetrics>();
 
         // Security & Auth Options
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));

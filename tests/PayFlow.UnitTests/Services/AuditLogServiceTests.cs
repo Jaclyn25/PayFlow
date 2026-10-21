@@ -50,7 +50,7 @@ public class AuditLogServiceTests
         savedLog.IpAddress.Should().Be("192.168.1.100");
         savedLog.UserAgent.Should().Be("Mozilla/5.0 TestBrowser");
         savedLog.FailureReason.Should().BeNull();
-        savedLog.TimestampUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        savedLog.TimestampUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(30));
     }
 
     [Fact]

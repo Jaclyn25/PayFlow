@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -5,6 +6,7 @@ using PayFlow.Application.Common.Interfaces;
 using PayFlow.Application.DTOs;
 using PayFlow.Domain.Constants;
 using PayFlow.Domain.Entities;
+using PayFlow.Infrastructure.Observability;
 
 namespace PayFlow.Infrastructure.Messaging;
 
@@ -39,6 +41,10 @@ public class NotificationMessageProcessor : INotificationMessageProcessor
         var currency = (root.TryGetProperty("Currency", out var curProp) ? curProp.GetString() : null) ?? "EGP";
         var targetAmount = root.TryGetProperty("TargetAmount", out var targetAmtProp) ? targetAmtProp.GetDecimal() : amount;
         var targetCurrency = (root.TryGetProperty("TargetCurrency", out var targetCurProp) ? targetCurProp.GetString() : null) ?? currency;
+
+        using var processActivity = PayFlowDiagnostics.ActivitySource.StartActivity("Consumer.ProcessNotification", ActivityKind.Internal);
+        processActivity?.SetTag("notification.transactionId", transactionIdStr);
+        processActivity?.SetTag("notification.reference", reference);
 
         Guid.TryParse(transactionIdStr, out var transactionId);
 
