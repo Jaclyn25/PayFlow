@@ -111,3 +111,11 @@ rabbitmq-data/
 ## Build / Publish
 publish/
 **/PublishProfiles/
+
+
+## Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm/

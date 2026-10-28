@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    name: Build & Run Tests
+    name: Build & Run .NET Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +28,26 @@ jobs:
 
       - name: Execute Tests
         run: dotnet test PayFlow.slnx --no-build -c Release --verbosity normal
+
+  frontend-build:
+    name: Build Frontend (Vite & React)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/payflow-web/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: frontend/payflow-web
+        run: npm ci
+
+      - name: Build Web Client
+        working-directory: frontend/payflow-web
+        run: npm run build
