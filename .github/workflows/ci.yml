@@ -30,7 +30,7 @@ jobs:
         run: dotnet test PayFlow.slnx --no-build -c Release --verbosity normal
 
   frontend-build:
-    name: Build Frontend (Vite & React)
+    name: Build & Test Frontend (Vite & React)
     runs-on: ubuntu-latest
 
     steps:
@@ -47,6 +47,10 @@ jobs:
       - name: Install Dependencies
         working-directory: frontend/payflow-web
         run: npm ci
+
+      - name: Run Unit Tests
+        working-directory: frontend/payflow-web
+        run: npm test
 
       - name: Build Web Client
         working-directory: frontend/payflow-web

@@ -67,12 +67,34 @@ export interface PagedResult<T> {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
-  expiresIn: number;
+  expiresIn?: number;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  currency?: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
 }
 
 export interface AuthResponse {
-  user: User;
-  tokens: AuthTokens;
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresAtUtc?: string;
+  user?: User;
+  requiresTwoFactor?: boolean;
+  twoFactorToken?: string | null;
+  message?: string | null;
 }
 
 export interface FeeQuote {
