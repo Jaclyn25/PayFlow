@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -23,6 +23,7 @@ const queryClient = new QueryClient({
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -33,7 +34,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const returnUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?returnUrl=${returnUrl}`} state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
@@ -41,6 +43,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const [searchParams] = useSearchParams();
 
   if (isLoading) {
     return (
@@ -51,7 +54,9 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    const rawReturnUrl = searchParams.get('returnUrl');
+    const returnUrl = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : '/';
+    return <Navigate to={returnUrl} replace />;
   }
 
   return <>{children}</>;
@@ -64,7 +69,7 @@ export function App() {
         <AuthProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public Routes */}
+              {/* Public Authentication Routes */}
               <Route
                 path="/login"
                 element={
