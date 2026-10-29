@@ -1,8 +1,12 @@
-# PayFlow — Digital Wallet & Payment Backend
+# PayFlow — Digital Wallet & Payment Platform
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
+[![React 19](https://img.shields.io/badge/React-19.0-blue.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI Pipeline](https://github.com/Jaclyn25/PayFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Jaclyn25/PayFlow/actions/workflows/ci.yml)
+[![CodeQL SAST](https://github.com/Jaclyn25/PayFlow/actions/workflows/codeql.yml/badge.svg)](https://github.com/Jaclyn25/PayFlow/actions/workflows/codeql.yml)
+[![Security: GitGuardian](https://img.shields.io/badge/Security-GitGuardian-brightgreen.svg)](https://dashboard.gitguardian.com)
 
 **PayFlow** is a production-grade, portfolio-quality backend system built from scratch using **.NET 10**, **ASP.NET Core Web API**, **C#**, **Entity Framework Core 10**, **PostgreSQL**, **Redis**, **RabbitMQ**, and **Docker**.
 

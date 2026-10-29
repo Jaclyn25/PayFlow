@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
 jobs:
   build-and-test:
     name: Build & Run .NET Tests
@@ -26,8 +31,46 @@ jobs:
       - name: Build Solution
         run: dotnet build PayFlow.slnx --no-restore -c Release
 
-      - name: Execute Tests
-        run: dotnet test PayFlow.slnx --no-build -c Release --verbosity normal
+      - name: Execute Tests with Code Coverage
+        run: dotnet test PayFlow.slnx --no-build -c Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+      - name: Generate Code Coverage Summary
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: TestResults/**/coverage.cobertura.xml
+          badge: true
+          fail_below_min: false
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: false
+          indicators: true
+          output: both
+          thresholds: '60 80'
+
+      - name: Add Coverage to Step Summary
+        if: always()
+        run: |
+          if [ -f code-coverage-results.md ]; then
+            cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Post Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        with:
+          recreate: true
+          path: code-coverage-results.md
+
+      - name: Upload Test and Coverage Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dotnet-test-and-coverage-results
+          path: |
+            TestResults/**/coverage.cobertura.xml
+            code-coverage-results.md
+          retention-days: 14
 
   frontend-build:
     name: Build & Test Frontend (Vite & React)
