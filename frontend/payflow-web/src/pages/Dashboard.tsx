@@ -28,6 +28,7 @@ import { walletApi } from '@/api/wallet';
 import { useWalletHub } from '@/hooks/useWalletHub';
 import { DepositModal } from '@/components/wallet/DepositModal';
 import { WithdrawModal } from '@/components/wallet/WithdrawModal';
+import { TransferModal } from '@/components/wallet/TransferModal';
 import type { Wallet as WalletType, Transaction } from '@/types';
 
 export function Dashboard() {
@@ -36,6 +37,7 @@ export function Dashboard() {
 
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [hideBalance, setHideBalance] = useState<boolean>(() => {
     return localStorage.getItem('payflow_hide_balance') === 'true';
@@ -176,12 +178,14 @@ export function Dashboard() {
             <span>Withdraw</span>
           </Button>
 
-          <Link to="/transfers">
-            <Button size="sm" className="gap-1.5 text-xs shadow-sm">
-              <Send className="h-3.5 w-3.5" />
-              <span>Send Money</span>
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            onClick={() => setIsTransferModalOpen(true)}
+            className="gap-1.5 text-xs shadow-sm"
+          >
+            <Send className="h-3.5 w-3.5" />
+            <span>Send Money</span>
+          </Button>
         </div>
       </div>
 
@@ -286,12 +290,14 @@ export function Dashboard() {
                   <ArrowUpRight className="h-3.5 w-3.5 text-amber-500" />
                   <span>Withdraw</span>
                 </Button>
-                <Link to="/transfers">
-                  <Button size="sm" className="gap-1.5 text-xs">
-                    <Send className="h-3.5 w-3.5" />
-                    <span>Send</span>
-                  </Button>
-                </Link>
+                <Button
+                  size="sm"
+                  onClick={() => setIsTransferModalOpen(true)}
+                  className="gap-1.5 text-xs"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  <span>Transfer</span>
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -446,6 +452,14 @@ export function Dashboard() {
       <WithdrawModal
         isOpen={isWithdrawOpen}
         onClose={() => setIsWithdrawOpen(false)}
+        availableBalance={wallet.balance}
+        currency={wallet.currency}
+      />
+
+      {/* Transfer Modal */}
+      <TransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
         availableBalance={wallet.balance}
         currency={wallet.currency}
       />
