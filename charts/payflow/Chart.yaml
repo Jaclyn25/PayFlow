@@ -1,0 +1,16 @@
+apiVersion: v2
+name: payflow
+description: Production-ready Helm chart for PayFlow digital wallet and financial ledger platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - fintech
+  - payment
+  - wallet
+  - ledger
+  - dotnet
+home: https://github.com/Jaclyn25/PayFlow
+maintainers:
+  - name: Jaclyn25
+    email: dev@payflow.local

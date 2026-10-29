@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "payflow.fullname" . }}-config
+  labels:
+    {{- include "payflow.labels" . | nindent 4 }}
+data:
+  ASPNETCORE_ENVIRONMENT: {{ .Values.config.environment | quote }}
+  ASPNETCORE_URLS: "http://+:8080"
+  Serilog__MinimumLevel: {{ .Values.config.serilogLevel | quote }}
+  RabbitMQ__HostName: {{ .Values.config.rabbitMqHost | quote }}
+  RabbitMQ__Port: {{ .Values.config.rabbitMqPort | quote }}
+  RabbitMQ__UserName: {{ .Values.config.rabbitMqUser | quote }}
+  ConnectionStrings__Redis: {{ .Values.config.redisConnection | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otelEndpoint | quote }}
+  Cors__AllowedOrigins__0: {{ .Values.config.corsAllowedOrigins | quote }}
+  Jwt__Issuer: {{ .Values.config.jwtIssuer | quote }}
+  Jwt__Audience: {{ .Values.config.jwtAudience | quote }}
