@@ -27,6 +27,7 @@ public class WalletController : ControllerBase
     }
 
     [HttpGet]
+    [HttpGet("me")]
     [ProducesResponseType(typeof(WalletResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
