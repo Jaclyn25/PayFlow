@@ -1,0 +1,111 @@
+# Default values for payflow helm chart.
+replicaCount: 2
+
+image:
+  repository: ghcr.io/jaclyn25/payflow-api
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/metrics"
+  prometheus.io/port: "8080"
+
+podSecurityContext: {}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "16m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: "payflow"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: api.payflow.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: payflow-tls-cert
+      hosts:
+        - api.payflow.example.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+probes:
+  startup:
+    path: /liveness
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 30
+  liveness:
+    path: /liveness
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    path: /readiness
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+config:
+  environment: "Production"
+  serilogLevel: "Information"
+  rabbitMqHost: "rabbitmq.payflow.svc.cluster.local"
+  rabbitMqPort: "5672"
+  rabbitMqUser: "guest"
+  redisConnection: "redis.payflow.svc.cluster.local:6379"
+  otelEndpoint: "http://jaeger-collector.payflow.svc.cluster.local:4317"
+  corsAllowedOrigins: "https://payflow.example.com"
+  jwtIssuer: "PayFlow.Api"
+  jwtAudience: "PayFlow.Client"
+
+secrets:
+  defaultConnection: "Host=postgres.payflow.svc.cluster.local;Port=5432;Database=payflow;Username=payflow;Password=ChangeThisInProductionStrongPassword123!"
+  rabbitMqPassword: "ChangeThisInProductionRabbitPassword123!"
+  jwtSecretKey: "PayFlowSuperSecretProductionSigningKeyShouldBeAtLeast256BitsLong2026!"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
